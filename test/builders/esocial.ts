@@ -123,3 +123,97 @@ export function umS1010(r: S1010Ficticio): string {
     `<infoRubrica><${operacao}>${ide}${dados}${nova}</${operacao}></infoRubrica></evtTabRubrica></eSocial>`
   );
 }
+
+export interface PagamentoFicticio {
+  dtPgto?: string;
+  /** 1 = S-1200, 2 = S-2299, 3 = S-2399, 4 = S-1202, 5 = S-1207 */
+  tpPgto?: string;
+  perRef?: string;
+  ideDmDev: string;
+  vrLiq: string;
+}
+
+export interface S1210Ficticio {
+  id?: string;
+  cpf?: string;
+  perApur?: string;
+  indRetif?: '1' | '2';
+  nrRecibo?: string;
+  pagamentos: PagamentoFicticio[];
+}
+
+export function umS1210(s: S1210Ficticio): string {
+  const perApur = s.perApur ?? '2026-09';
+  const pagamentos = s.pagamentos
+    .map(
+      (p) =>
+        `<infoPgto><dtPgto>${p.dtPgto ?? `${perApur}-05`}</dtPgto><tpPgto>${p.tpPgto ?? '1'}</tpPgto>` +
+        `<perRef>${p.perRef ?? '2026-09'}</perRef><ideDmDev>${p.ideDmDev}</ideDmDev><vrLiq>${p.vrLiq}</vrLiq></infoPgto>`,
+    )
+    .join('');
+  return (
+    `<eSocial xmlns="${NS('evtPgtos')}"><evtPgtos Id="${s.id ?? umId(500)}">` +
+    `<ideEvento><indRetif>${s.indRetif ?? '1'}</indRetif>${opcional('nrRecibo', s.nrRecibo)}` +
+    `<perApur>${perApur}</perApur>${PROC}</ideEvento>${EMPREGADOR}` +
+    `<ideBenef><cpfBenef>${s.cpf ?? '52998224725'}</cpfBenef>${pagamentos}</ideBenef></evtPgtos></eSocial>`
+  );
+}
+
+export interface S2299Ficticio {
+  id?: string;
+  cpf?: string;
+  matricula?: string;
+  dtDeslig?: string;
+  indRetif?: '1' | '2';
+  nrRecibo?: string;
+  /** Demonstrativos de rescisão (verbasResc/dmDev). */
+  dmDev?: {
+    ideDmDev: string;
+    itens: ItemFicticio[];
+    anteriores?: { perRef: string; itens: ItemFicticio[] }[];
+  }[];
+}
+
+const detVerbas = (lista: ItemFicticio[]) =>
+  lista
+    .map(
+      (i) =>
+        `<detVerbas><codRubr>${i.codRubr}</codRubr><ideTabRubr>${i.ideTabRubr ?? '001'}</ideTabRubr>` +
+        `<vrRubr>${i.vrRubr}</vrRubr><indApurIR>0</indApurIR></detVerbas>`,
+    )
+    .join('');
+
+export function umS2299(s: S2299Ficticio): string {
+  const estab = (itensXml: string) =>
+    `<ideEstabLot>${ESTAB}<codLotacao>LOT001</codLotacao>${itensXml}</ideEstabLot>`;
+  const verbas = s.dmDev?.length
+    ? '<verbasResc>' +
+      s.dmDev
+        .map((dm) => {
+          const perApur = dm.itens.length
+            ? `<infoPerApur>${estab(detVerbas(dm.itens))}</infoPerApur>`
+            : '';
+          const perAnt = dm.anteriores?.length
+            ? '<infoPerAnt><ideADC><tpAcConv>A</tpAcConv><dsc>Acordo coletivo</dsc>' +
+              dm.anteriores
+                .map(
+                  (a) =>
+                    `<idePeriodo><perRef>${a.perRef}</perRef>${estab(detVerbas(a.itens))}</idePeriodo>`,
+                )
+                .join('') +
+              '</ideADC></infoPerAnt>'
+            : '';
+          return `<dmDev><ideDmDev>${dm.ideDmDev}</ideDmDev>${perApur}${perAnt}</dmDev>`;
+        })
+        .join('') +
+      '</verbasResc>'
+    : '';
+  return (
+    `<eSocial xmlns="${NS('evtDeslig')}"><evtDeslig Id="${s.id ?? umId(700)}">` +
+    `<ideEvento><indRetif>${s.indRetif ?? '1'}</indRetif>${opcional('nrRecibo', s.nrRecibo)}${PROC}</ideEvento>` +
+    `${EMPREGADOR}<ideVinculo><cpfTrab>${s.cpf ?? '52998224725'}</cpfTrab><matricula>${s.matricula ?? '0001'}</matricula></ideVinculo>` +
+    // CONFERIR NO LEIAUTE S-1.3: códigos fictícios válidos de mtvDeslig (Tabela 19) usados no gerador
+    `<infoDeslig><mtvDeslig>02</mtvDeslig><dtDeslig>${s.dtDeslig ?? '2026-09-15'}</dtDeslig>` +
+    `<indPagtoAPI>N</indPagtoAPI>${verbas}</infoDeslig></evtDeslig></eSocial>`
+  );
+}

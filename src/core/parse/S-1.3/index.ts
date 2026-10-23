@@ -2,9 +2,13 @@ import type { EventoBruto, ItemFora } from '../../ingest/tipos.ts';
 import { ErroDeLeitura } from '../xml.ts';
 import { parseS1010, type DtoS1010 } from './s1010.ts';
 import { parseS1200, type DtoS1200 } from './s1200.ts';
+import { parseS1210, type DtoS1210 } from './s1210.ts';
+import { parseS2299, type DtoS2299 } from './s2299.ts';
 
 export type * from './s1010.ts';
 export type * from './s1200.ts';
+export type * from './s1210.ts';
+export type * from './s2299.ts';
 
 /** De onde o evento veio no lote. O XML bruto não segue adiante (RNF-05). */
 export interface LocalEvento {
@@ -14,7 +18,9 @@ export interface LocalEvento {
 
 export type EventoLido =
   | { tipo: 'S-1010'; local: LocalEvento; dto: DtoS1010 }
-  | { tipo: 'S-1200'; local: LocalEvento; dto: DtoS1200 };
+  | { tipo: 'S-1200'; local: LocalEvento; dto: DtoS1200 }
+  | { tipo: 'S-1210'; local: LocalEvento; dto: DtoS1210 }
+  | { tipo: 'S-2299'; local: LocalEvento; dto: DtoS2299 };
 
 export interface ResultadoLeitura {
   lidos: EventoLido[];
@@ -35,8 +41,14 @@ export function lerEventos(eventos: readonly EventoBruto[]): ResultadoLeitura {
         case 'S-1200':
           lidos.push({ tipo: 'S-1200', local, dto: parseS1200(evento.xml) });
           break;
+        case 'S-1210':
+          lidos.push({ tipo: 'S-1210', local, dto: parseS1210(evento.xml) });
+          break;
+        case 'S-2299':
+          lidos.push({ tipo: 'S-2299', local, dto: parseS2299(evento.xml) });
+          break;
         default:
-          // S-1210 e S-2299 na etapa 1.3b; S-1202, S-1207 e S-1299 no Marco 4.
+          // S-1202, S-1207 e S-1299 no Marco 4.
           foraDaAuditoria.push({
             ...local,
             motivo: 'leitura-nao-implementada',

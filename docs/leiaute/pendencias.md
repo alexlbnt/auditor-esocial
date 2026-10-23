@@ -6,19 +6,21 @@ Ao confirmar, mova a linha para "Confirmados", com a fonte e a data.
 
 ## A conferir
 
-| Campo ou ponto                                                                                                                                            | Evento | Usado em                   | Origem da dúvida                 |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------- | -------------------------------- |
-| `nrBeneficio`                                                                                                                                             | S-1207 | R005                       | ficha R005                       |
-| Estrutura completa (matrícula, grupos)                                                                                                                    | S-1202 | R007, R010                 | ficha R007                       |
-| Estrutura completa (`perApur`, `indApuracao`)                                                                                                             | S-1299 | R012                       | ficha R012                       |
-| Composição do `Id` do evento (inscrição + data/hora + sequencial)                                                                                         | todos  | R012, D-09, D-10           | conferência com o S-1200 real    |
-| Categorias RPPS na Tabela 01; se a 302 pode ser RGPS ou RPPS                                                                                              | —      | R010, R007                 | ficha R010                       |
-| Se algum evento usa prefixo de namespace declarado só no envelope (o ingest copia os `xmlns:*` do envelope para o trecho do evento)                       | todos  | ingest, R001               | etapa 1.1                        |
-| Escolha do pacote (D-09): o `audit-cli` usa o pacote mais recente em `schemas/xsd/S-1.3/` ou o de `--pacote`                                              | todos  | R001                       | etapa 1.2                        |
-| Semântica de `alteracao` (troca os dados da validade em `ideRubrica`; `novaValidade` troca a validade) e de `exclusao` (remove aquela validade) no S-1010 | S-1010 | `src/core/model/montar.ts` | etapa 1.3a, hipótese sobre o MOS |
-| Validade do S-1010 (AAAA-MM) para a folha de 13º (`perApur` AAAA): o montador usa dezembro                                                                | S-1010 | `src/core/model/montar.ts` | etapa 1.3a                       |
-| Ordem entre retificações do mesmo trabalhador e competência: hoje a do lote; o ideal é a data/hora do `Id` (D-10)                                         | S-1200 | `src/core/model/montar.ts` | etapa 1.3a                       |
-| Empregador pessoa física (`tpInsc` = 2): o `nrInsc` é um CPF de 11 dígitos e não pode sair do navegador sem máscara                                       | todos  | servidor (Marco 6)         | etapa 1.3a                       |
+| Campo ou ponto                                                                                                                                            | Evento | Usado em                        | Origem da dúvida                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------- | -------------------------------- |
+| `nrBeneficio`                                                                                                                                             | S-1207 | R005                            | ficha R005                       |
+| Estrutura completa (matrícula, grupos)                                                                                                                    | S-1202 | R007, R010                      | ficha R007                       |
+| Estrutura completa (`perApur`, `indApuracao`)                                                                                                             | S-1299 | R012                            | ficha R012                       |
+| Composição do `Id` do evento (inscrição + data/hora + sequencial)                                                                                         | todos  | R012, D-09, D-10                | conferência com o S-1200 real    |
+| Categorias RPPS na Tabela 01; se a 302 pode ser RGPS ou RPPS                                                                                              | —      | R010, R007                      | ficha R010                       |
+| Se algum evento usa prefixo de namespace declarado só no envelope (o ingest copia os `xmlns:*` do envelope para o trecho do evento)                       | todos  | ingest, R001                    | etapa 1.1                        |
+| Escolha do pacote (D-09): o `audit-cli` usa o pacote mais recente em `schemas/xsd/S-1.3/` ou o de `--pacote`                                              | todos  | R001                            | etapa 1.2                        |
+| Semântica de `alteracao` (troca os dados da validade em `ideRubrica`; `novaValidade` troca a validade) e de `exclusao` (remove aquela validade) no S-1010 | S-1010 | `src/core/model/montar.ts`      | etapa 1.3a, hipótese sobre o MOS |
+| Validade do S-1010 (AAAA-MM) para a folha de 13º (`perApur` AAAA): o montador usa dezembro                                                                | S-1010 | `src/core/model/montar.ts`      | etapa 1.3a                       |
+| Ordem entre retificações do mesmo trabalhador e competência: hoje a do lote; o ideal é a data/hora do `Id` (D-10)                                         | S-1200 | `src/core/model/montar.ts`      | etapa 1.3a                       |
+| Empregador pessoa física (`tpInsc` = 2): o `nrInsc` é um CPF de 11 dígitos e não pode sair do navegador sem máscara                                       | todos  | servidor (Marco 6)              | etapa 1.3a                       |
+| Janela de `perApur` do S-1210 para a folha de 13º: o montador aceita os meses do ano e janeiro seguinte                                                   | S-1210 | `src/core/model/competencia.ts` | etapa 1.3b                       |
+| Código fictício de `mtvDeslig` (Tabela 19) usado no gerador de S-2299: o XSD aceita `02`; conferir se é um código válido                                  | S-2299 | `test/builders/esocial.ts`      | etapa 1.3b                       |
 
 ## Confirmados
 

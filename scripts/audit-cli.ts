@@ -107,6 +107,14 @@ if (modelo.tipo === 'pronta') {
   console.log(`Modelo: competência ${auditoria.competencia} (${auditoria.apuracao})`);
   console.log(`  trabalhadores  ${auditoria.pessoas.size}`);
   console.log(`  demonstrativos  ${demonstrativos.length} (${semCadastro} com rubrica sem S-1010)`);
+  for (const [fonte, n] of contar(demonstrativos.map((d) => d.fonte))) {
+    console.log(`    ${fonte}  ${n}`);
+  }
+  const pessoas = [...auditoria.pessoas.values()];
+  console.log(`  pagamentos (S-1210)  ${pessoas.reduce((n, p) => n + p.pagamentos.length, 0)}`);
+  console.log(
+    `  desligamentos (S-2299)  ${pessoas.reduce((n, p) => n + p.desligamentos.length, 0)}`,
+  );
   console.log(`  rubricas válidas na competência  ${auditoria.rubricas.size}`);
 } else if (modelo.tipo === 'escolher-competencia') {
   const lista = modelo.competencias.join(', ');

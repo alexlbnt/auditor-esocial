@@ -58,16 +58,17 @@ const ler = criarLeitor(
   ]),
 );
 
-function lerItem(item: No): DtoItemRemun {
+/** Item de rubrica: `itensRemun` no S-1200 e `detVerbas` no S-2299 têm os mesmos campos. */
+export function lerItem(item: No, grupo = 'itensRemun'): DtoItemRemun {
   const opcionais = {
     qtdRubr: textoOpcional(item, 'qtdRubr'),
     fatorRubr: textoOpcional(item, 'fatorRubr'),
     indApurIR: textoOpcional(item, 'indApurIR'),
   };
   return {
-    codRubr: texto(item, 'codRubr', 'itensRemun/codRubr'),
-    ideTabRubr: texto(item, 'ideTabRubr', 'itensRemun/ideTabRubr'),
-    vrRubr: texto(item, 'vrRubr', 'itensRemun/vrRubr'),
+    codRubr: texto(item, 'codRubr', `${grupo}/codRubr`),
+    ideTabRubr: texto(item, 'ideTabRubr', `${grupo}/ideTabRubr`),
+    vrRubr: texto(item, 'vrRubr', `${grupo}/vrRubr`),
     ...Object.fromEntries(Object.entries(opcionais).filter(([, v]) => v !== undefined)),
   };
 }
@@ -82,7 +83,7 @@ function lerGrupos(estabs: No[], nomeRemun: string, perRef?: string): DtoGrupoRe
         codLotacao: texto(estab, 'codLotacao', 'ideEstabLot/codLotacao'),
         ...(matricula ? { matricula } : {}),
         ...(perRef ? { perRef } : {}),
-        itens: lista(remun, 'itensRemun').map(lerItem),
+        itens: lista(remun, 'itensRemun').map((i) => lerItem(i)),
       };
     }),
   );

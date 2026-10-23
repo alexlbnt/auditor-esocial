@@ -309,12 +309,12 @@ describe('montarAuditoria: valores', () => {
 describe('lerEventos', () => {
   it('evento sem leitor ainda e campo ausente vão para fora da auditoria', () => {
     const r = lerEventos([
-      bruto('S-1210', '<eSocial/>'),
+      bruto('S-1299', '<eSocial/>'),
       bruto('S-1200', umS1200({ dmDev: [] }).replace(/<cpfTrab>\d+<\/cpfTrab>/, '')),
     ]);
     expect(r.lidos).toEqual([]);
     expect(r.foraDaAuditoria.map((f) => [f.motivo, f.detalhe])).toEqual([
-      ['leitura-nao-implementada', 'S-1210'],
+      ['leitura-nao-implementada', 'S-1299'],
       ['leitura-falhou', 'S-1200 ideTrabalhador/cpfTrab'],
     ]);
   });
