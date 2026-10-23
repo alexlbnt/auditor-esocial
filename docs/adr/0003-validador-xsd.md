@@ -20,3 +20,7 @@ Os pacotes oficiais ainda não estão em `schemas/xsd/` (pendência 0.2 do Alex)
 8. **As mensagens da libxml2 citam valores do XML, inclusive CPF** (conferido). Elas ficam só na memória; o `audit-cli` as imprime saneadas e a serialização dos achados (1.4) precisa sanear também.
 9. **O texto vai para a libxml2 já decodificado**, com `encoding: 'utf-8'`, para o `encoding` da declaração XML não ser aplicado duas vezes.
 10. **`core/audit.ts` nasce aqui** e orquestra ingest → XSD. O `audit-cli` passa a usá-lo.
+
+## Atualização em 23/10/2026: pacotes oficiais
+
+Os pacotes de 01/07/2026 e 26/10/2026 foram baixados do gov.br e estão em `schemas/xsd/S-1.3/<data>/` exatamente como publicados (pasta plana, 52 arquivos cada). Confirmaram a forma que o validador supunha (D-07) e que o XSD exige `ds:Signature` (D-08). A fixture anonimizada passa nos dois sem R001; `test/xsd-oficial.test.ts` roda no CI contra todos os pacotes da pasta. Os outros seis pacotes entram quando forem necessários (processo de Nota Técnica, seção 10.5).
