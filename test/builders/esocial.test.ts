@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { carregarPacote, listarPacotes } from '../../scripts/lib/pacotes-xsd';
 import { criarValidadorLibxml2 } from '../../src/core/xsd/libxml2';
-import { umS1010, umS1200 } from './esocial';
+import { umS1010, umS1200, umS1210, umS2299 } from './esocial';
 
 const ns = (evento: string) => `http://www.esocial.gov.br/schema/evt/${evento}/v_S_01_03_00`;
 
@@ -71,6 +71,39 @@ describe.each(listarPacotes())('geradores contra o pacote oficial %s', (data) =>
       'S-1010 exclusão',
       'evtTabRubrica',
       umS1010({ codRubr: '1', operacao: 'exclusao', fimValid: '2026-12' }),
+    ],
+    [
+      'S-1210 com dois pagamentos',
+      'evtPgtos',
+      umS1210({
+        pagamentos: [
+          { ideDmDev: 'A', vrLiq: '100.00' },
+          { ideDmDev: 'R', tpPgto: '2', vrLiq: '50.00' },
+        ],
+      }),
+    ],
+    [
+      'S-1210 retificação',
+      'evtPgtos',
+      umS1210({
+        indRetif: '2',
+        nrRecibo: '1.1.0000000000000000001',
+        pagamentos: [{ ideDmDev: 'A', vrLiq: '0.00' }],
+      }),
+    ],
+    ['S-2299 sem verbas', 'evtDeslig', umS2299({})],
+    [
+      'S-2299 com verbas e período anterior',
+      'evtDeslig',
+      umS2299({
+        dmDev: [
+          {
+            ideDmDev: 'R',
+            itens: [{ codRubr: '1', vrRubr: '100.00' }],
+            anteriores: [{ perRef: '2026-08', itens: [{ codRubr: '2', vrRubr: '5.00' }] }],
+          },
+        ],
+      }),
     ],
   ];
 

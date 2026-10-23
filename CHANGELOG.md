@@ -6,6 +6,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ### Adicionado
 
+- Leitura do S-1210 e do S-2299 (etapa 1.3b): pagamentos ligados ao demonstrativo por CPF + `tpPgto` + `perRef` + `ideDmDev`, regime de caixa (S-1210 de N ou N+1), desligamentos e demonstrativos de rescisão. `npm run audit` mostra pagamentos e desligamentos.
 - Leitura do S-1200 e do S-1010 e montagem do modelo por trabalhador (etapa 1.3a): demonstrativos com diferenças de períodos anteriores, tabela de rubricas válida na competência, retificação mais recente para os valores, `totais()` em centavos. `npm run audit` aceita `--competencia` e mostra o resumo do modelo.
 - Pacotes XSD oficiais S-1.3 de 01/07/2026 e 26/10/2026 em `schemas/xsd/S-1.3/`; `npm run audit` valida com eles.
 - Validação XSD (R001, etapa 1.2): cada evento é validado contra o pacote XSD carregado da memória, com até 5 mensagens e a linha de cada erro. A falta da assinatura digital não reprova o evento (aviso único). `npm run audit` aceita `--pacote AAAA-MM-DD` e `--detalhes`.
