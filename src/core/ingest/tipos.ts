@@ -31,7 +31,11 @@ export type MotivoFora =
   | 'exclusao-nao-considerada'
   | 'zip-corrompido'
   | 'zip-aninhado'
-  | 'xsd-indisponivel';
+  | 'xsd-indisponivel'
+  | 'leitura-nao-implementada'
+  | 'leitura-falhou'
+  | 'valor-invalido'
+  | 'outra-competencia';
 
 /** O que não foi auditado nunca some: vira uma linha do bloco "fora da auditoria". */
 export interface ItemFora {

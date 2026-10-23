@@ -940,13 +940,13 @@ Cada ficha é o contrato da regra: o teste de contrato do catálogo (nível 3) c
 ### R002 · Líquido pago diferente do demonstrativo (Erro)
 
 - **Objetivo:** pegar diferença entre o que o S-1210 diz que pagou e o que o demonstrativo do S-1200/S-1202/S-1207 fecha.
-- **Eventos e campos:** S-1200 ✅ `cpfTrab`, `ideDmDev`, `codRubr`, `ideTabRubr`, `vrRubr`, `perApur`. S-1210 ⚠️ `cpfBenef`, `perRef`, `ideDmDev`, `vrLiq`, `dtPgto`. S-1010 ⚠️ `tpRubr` (provento, desconto, informativa).
-- **Condição:** liga pagamento e demonstrativo por CPF + `perRef` + `ideDmDev`. Soma todos os pagamentos do mesmo demonstrativo (pode haver mais de um `infoPgto`). Dispara se soma dos líquidos ≠ proventos − descontos, calculados por `totais()`.
+- **Eventos e campos:** S-1200 ✅ `cpfTrab`, `ideDmDev`, `codRubr`, `ideTabRubr`, `vrRubr`, `perApur`. S-2299 ✅ `verbasResc/dmDev` (demonstrativo de rescisão, D-17). S-1210 ✅ `cpfBenef`, `infoPgto/{tpPgto, perRef, ideDmDev, vrLiq, dtPgto}`. S-1010 ✅ `tpRubr` (1 provento, 2 desconto, 3 informativa, 4 informativa dedutora). *Campos confirmados no XSD oficial em 23/10/2026.*
+- **Condição:** liga pagamento e demonstrativo por CPF + `tpPgto` + `perRef` + `ideDmDev` (D-16). O `tpPgto` diz a fonte do demonstrativo: 1 = S-1200, 2 = S-2299, 4 = S-1202, 5 = S-1207 (3 = S-2399, fora do MVP). Soma todos os pagamentos (`infoPgto`) do mesmo demonstrativo. Dispara se soma dos `vrLiq` ≠ proventos − descontos, calculados por `totais()` sobre o demonstrativo inteiro (inclusive diferenças de períodos anteriores, `infoPerAnt`).
 - **Não dispara quando:** o demonstrativo não tem pagamento no lote (isso é R011). Nenhum S-1210 no lote: um único Info "pagamentos não enviados" em vez de um achado por trabalhador.
 - **Severidade:** Erro. Rebaixa para Alerta quando alguma rubrica do demonstrativo não tem cadastro no S-1010 do lote, porque aí não dá para saber se é provento ou desconto.
 - **Exemplo:** demonstrativo fecha R$ 3.150,00, S-1210 pagou R$ 3.210,00.
 - **Sugestão:** procurar rubrica paga fora da folha ou adiantamento não descontado; retificar o evento errado.
-- **Pendências:** regime de caixa (S-1210 de N+1, ver 7.1) e se `vrLiq` existe no S-1.3 ou se o líquido é calculado. Conferir no MOS.
+- **Pendências:** regime de caixa (S-1210 de N+1, ver 7.1). *Confirmado no XSD em 23/10/2026: `vrLiq` existe (líquido informado, não negativo) e `dtPgto` fica dentro do `perApur` do S-1210.*
 
 ### R003 · Remuneração depois do desligamento (Erro)
 
@@ -1028,11 +1028,11 @@ Cada ficha é o contrato da regra: o teste de contrato do catálogo (nível 3) c
 
 - **Objetivo:** pegar demonstrativo esquecido no S-1210 ou pagamento de demonstrativo que não existe.
 - **Eventos e campos:** os de R002.
-- **Condição:** demonstrativo sem pagamento ligado (CPF + `perRef` + `ideDmDev`), ou pagamento cujo `ideDmDev` não existe em nenhum demonstrativo do lote.
+- **Condição:** demonstrativo sem pagamento ligado (CPF + `tpPgto` + `perRef` + `ideDmDev`, D-16), ou pagamento que não aponta para nenhum demonstrativo do lote. Demonstrativos de rescisão do S-2299 contam (D-17); pagamento com `tpPgto` = 3 (S-2399, fora do MVP) vai para "fora da auditoria".
 - **Não dispara quando:** o lote não tem S-1210 (um Info só, ver R002). Pagamento de competência anterior (`perRef` < competência auditada), porque o demonstrativo está em outro lote.
 - **Regime de caixa:** a folha de 09 paga em 10 vem num S-1210 de `perApur` 10. A auditoria aceita S-1210 de `perApur` N e N+1 e liga por `perRef` (ver 7.1). Se o usuário subir só a competência N, os demonstrativos pagos em N+1 viram um Info agrupado, não alertas.
 - **Sugestão:** enviar o pagamento ou corrigir o `ideDmDev`.
-- **Pendências:** confirmar no MOS o significado de `perApur` e `perRef` no S-1210.
+- **Pendências:** *confirmado no XSD em 23/10/2026: `perRef` é o `perApur` do evento de origem (AAAA no 13º; mês/ano do desligamento para `tpPgto` = 2); o S-1210 não tem `indApuracao`.*
 
 ### R012 · Evento periódico depois do fechamento (Alerta)
 
@@ -1203,6 +1203,8 @@ Uma linha por decisão. Mudou de ideia? Atualize a linha, com a data, em vez de 
 | D-13 | Direção visual B, marca-texto: fundo papel #FAF8F2, tinta #1E1D1A, grifo #FFE45C, Manrope + JetBrains Mono, menu no topo. Severidade continua por cor + forma | Decidido 22/10/2026 (Alex) |
 | D-14 | Autenticação: better-auth + link mágico por e-mail (Resend) | Aberto, recomendação feita (item 8) |
 | D-15 | MVP sem nome do trabalhador: identificação por CPF mascarado + matrícula (nome só vem no S-2200, fora do escopo) | Decidido 22/10/2026 |
+| D-16 | O S-1210 liga ao demonstrativo por CPF + `tpPgto` + `perRef` + `ideDmDev`; no modelo, `tpPgto` vira a `fonte` do Demonstrativo (RGPS, rescisao, RPPS, beneficio) | Decidido 23/10/2026 (Alex), a partir do XSD oficial |
+| D-17 | Demonstrativos de rescisão do S-2299 (`verbasResc/dmDev`) entram no modelo (`fonte: rescisao`) e nas regras R002 e R011; S-2399 fica fora do MVP | Decidido 23/10/2026 (Alex) |
 
 ## Pendências fora do código
 

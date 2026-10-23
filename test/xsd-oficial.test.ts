@@ -38,6 +38,10 @@ describe.each(pacotes)('pacote oficial %s', (data) => {
       expect(r.reprovados).toEqual([]);
       expect(r.eventos).toHaveLength(1);
       expect(r.semAssinatura).toBe(1);
+      // E segue até o modelo canônico.
+      if (r.modelo.tipo !== 'pronta') throw new Error(r.modelo.tipo);
+      expect(r.modelo.auditoria).toMatchObject({ pacoteXsd: data, competencia: '2026-09' });
+      expect(r.modelo.auditoria.pessoas.get('52998224725')?.demonstrativos).toHaveLength(1);
     } finally {
       v.dispose();
     }

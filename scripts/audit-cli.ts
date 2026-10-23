@@ -1,4 +1,4 @@
-// Auditoria pelo terminal: npm run audit -- <pasta-ou-zip-ou-xml> [--pacote AAAA-MM-DD] [--detalhes]
+// Auditoria pelo terminal: npm run audit -- <pasta-ou-zip-ou-xml> [--pacote AAAA-MM-DD] [--competencia AAAA-MM] [--detalhes]
 // Usa o mesmo core/audit.ts do navegador. Nada de conteúdo de XML na saída:
 // nomes de arquivo e mensagens do XSD saem saneados (sem 11 dígitos seguidos).
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -7,6 +7,8 @@ import { parseArgs } from 'node:util';
 import { auditar } from '../src/core/audit.ts';
 import { sanearTexto } from '../src/core/findings/sanear.ts';
 import type { ArquivoEntrada } from '../src/core/ingest/index.ts';
+import { TABELAS_S_1_3 } from '../src/core/leiaute/S-1.3/tabelas.ts';
+import { totais } from '../src/core/model/totais.ts';
 import { criarValidadorLibxml2 } from '../src/core/xsd/libxml2.ts';
 import { carregarPacote, listarPacotes, RAIZ_PACOTES } from './lib/pacotes-xsd.ts';
 
@@ -19,7 +21,11 @@ function listar(pasta: string): string[] {
 
 const { values: opcoes, positionals } = parseArgs({
   allowPositionals: true,
-  options: { pacote: { type: 'string' }, detalhes: { type: 'boolean', default: false } },
+  options: {
+    pacote: { type: 'string' },
+    competencia: { type: 'string' },
+    detalhes: { type: 'boolean', default: false },
+  },
 });
 const alvo = positionals[0];
 if (!alvo) {
@@ -48,7 +54,10 @@ const entradas: ArquivoEntrada[] = (ehPasta ? listar(alvo) : [alvo]).map((caminh
 const validador = dataPacote ? criarValidadorLibxml2(carregarPacote(dataPacote)) : undefined;
 let resultado;
 try {
-  resultado = auditar(entradas, { validador });
+  resultado = auditar(entradas, {
+    ...(validador ? { validador } : {}),
+    ...(opcoes.competencia ? { competencia: opcoes.competencia } : {}),
+  });
 } finally {
   validador?.dispose();
 }
@@ -86,6 +95,27 @@ if (resultado.semAssinatura > 0) {
   console.log(
     `Aviso: ${resultado.semAssinatura} evento(s) sem assinatura digital, validados sem ela (D-08).`,
   );
+}
+
+const { modelo } = resultado;
+if (modelo.tipo === 'pronta') {
+  const { auditoria } = modelo;
+  const demonstrativos = [...auditoria.pessoas.values()].flatMap((p) => p.demonstrativos);
+  const semCadastro = demonstrativos.filter(
+    (d) => totais(d, auditoria.rubricas, TABELAS_S_1_3).rubricasSemCadastro.length > 0,
+  ).length;
+  console.log(`Modelo: competência ${auditoria.competencia} (${auditoria.apuracao})`);
+  console.log(`  trabalhadores  ${auditoria.pessoas.size}`);
+  console.log(`  demonstrativos  ${demonstrativos.length} (${semCadastro} com rubrica sem S-1010)`);
+  console.log(`  rubricas válidas na competência  ${auditoria.rubricas.size}`);
+} else if (modelo.tipo === 'escolher-competencia') {
+  const lista = modelo.competencias.join(', ');
+  console.log(`Modelo: o lote tem mais de uma competência (${lista}). Use --competencia.`);
+} else if (modelo.tipo === 'varios-empregadores') {
+  const lista = modelo.raizes.map(sanearTexto).join(', ');
+  console.log(`Modelo: mais de um empregador no lote (${lista}).`);
+} else {
+  console.log('Modelo: nenhum S-1200 para montar.');
 }
 
 console.log(`Fora da auditoria: ${resultado.foraDaAuditoria.length}`);
