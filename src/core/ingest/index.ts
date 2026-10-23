@@ -47,7 +47,7 @@ function analisarEvento(xml: string): Analise {
   const raiz = proximoElemento(xml);
   const ns = raiz ? namespaceDe(raiz) : undefined;
   const lido = ns ? lerNamespaceEvento(ns) : undefined;
-  if (!raiz || !lido) {
+  if (!raiz || !ns || !lido) {
     return { fora: { motivo: 'xml-nao-reconhecido', detalhe: ns ?? raiz?.nome ?? '' } };
   }
   if (lido.evento === EVENTO_EXCLUSAO) {
@@ -60,7 +60,7 @@ function analisarEvento(xml: string): Analise {
     return { fora: { motivo: 'leiaute-nao-suportado', detalhe: `${tipo} ${lido.versao}` } };
   }
   const id = proximoElemento(xml, raiz.fim)?.atributos.get('Id') ?? '';
-  return { evento: { tipo, leiaute, id, xml } };
+  return { evento: { tipo, leiaute, namespace: ns, id, xml } };
 }
 
 /**

@@ -632,7 +632,7 @@ Termos de uso e política de privacidade, aviso de ferramenta de apoio, plano pa
 | Mesmo evento duas vezes (mesmo Id) | Conta uma vez e gera um achado Info |
 | Original e retificador do mesmo trabalhador e período | Os dois ficam no modelo; regras de valor (R002, R013, R014) usam o retificador mais recente; R005 e R006 olham todos |
 | XML sem assinatura digital | Aceito (decisão D-08, a confirmar no XSD) |
-| Encoding diferente de UTF-8 | Tenta pela declaração do XML; se falhar, vira achado R001 |
+| Encoding diferente de UTF-8 | Tenta pela declaração do XML; se falhar, entra em "fora da auditoria" como encoding não suportado (não é R001: o XSD não valida texto que nem foi lido). *Alterado em 23/10/2026, ADR 0002, aprovado pelo Alex* |
 | Lote acima dos limites do RNF-06 | Recusa antes de processar, com o limite na mensagem |
 | S-1210 de outra competência (regime de caixa: folha de 09 paga em 10) | Aceita S-1210 com perApur N ou N+1 no mesmo lote e liga cada pagamento ao demonstrativo por perRef. Demonstrativo de N sem pagamento porque o S-1210 de N+1 não veio vira um Info agrupado. Hipótese: conferir perApur e perRef do S-1210 no MOS. |
 

@@ -14,6 +14,8 @@ export interface EventoBruto {
   posicaoNoLote: number;
   tipo: TipoEvento;
   leiaute: Leiaute;
+  /** Namespace do evento: escolhe o esquema no pacote XSD. */
+  namespace: string;
   /** Atributo `Id` do evento; vazio se ausente (o XSD acusa). */
   id: string;
   xml: string;
@@ -28,7 +30,8 @@ export type MotivoFora =
   | 'leiaute-nao-suportado'
   | 'exclusao-nao-considerada'
   | 'zip-corrompido'
-  | 'zip-aninhado';
+  | 'zip-aninhado'
+  | 'xsd-indisponivel';
 
 /** O que não foi auditado nunca some: vira uma linha do bloco "fora da auditoria". */
 export interface ItemFora {
