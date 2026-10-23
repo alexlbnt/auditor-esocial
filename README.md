@@ -17,6 +17,7 @@ npm test             # Vitest
 npm run lint         # ESLint, inclusive a fronteira do src/core
 npm run typecheck
 npm run checar-dados # XML fora de fixtures/ ou CPF válido fora da lista de fictícios
+npm run audit -- <pasta|zip|xml> [--detalhes]  # conta eventos por tipo e o que ficou fora
 ```
 
 XMLs reais ficam só em `local-data/` (ignorada pelo git).

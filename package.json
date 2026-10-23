@@ -15,9 +15,12 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p src/core/tsconfig.json",
     "test": "vitest run",
+    "audit": "node scripts/audit-cli.ts",
     "checar-dados": "node scripts/checar-dados-reais.ts"
   },
   "dependencies": {
+    "fast-xml-parser": "5.11.2",
+    "fflate": "0.8.3",
     "next": "16.4.2",
     "react": "19.3.1",
     "react-dom": "19.3.1"

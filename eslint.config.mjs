@@ -6,6 +6,8 @@ import prettier from 'eslint-config-prettier/flat';
 // no Vitest e no terminal. Nada de React, Next, Prisma, DOM ou outra camada.
 const fronteiraDoCore = {
   files: ['src/core/**/*.ts', 'src/core/**/*.tsx'],
+  // Testes rodam no Node (leem fixtures com node:fs); a fronteira vale para o código do core.
+  ignores: ['src/core/**/*.test.ts'],
   rules: {
     'no-restricted-imports': [
       'error',
