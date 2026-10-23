@@ -1194,8 +1194,8 @@ Uma linha por decisão. Mudou de ideia? Atualize a linha, com a data, em vez de 
 | D-04 | Regra = metadados + `executar` puro; achado sem textos, `chave` HMAC por conta (item 3) | Decidido 21/10/2026 |
 | D-05 | Bibliotecas e versões do item 4; Prisma fixo em 7.10.1; Node 22/24 | Decidido 21/10/2026 |
 | D-06 | Dinheiro em centavos inteiros; nunca `parseFloat` | Decidido 21/10/2026 |
-| D-07 | Estrutura de `schemas/xsd/S-1.3/<data>/` e script de diff entre pacotes | Aberto: depende de baixar os pacotes |
-| D-08 | Validar XSD sem assinatura digital (o S-1200 real veio sem) | Aberto: conferir se o XSD aceita |
+| D-07 | Estrutura de `schemas/xsd/S-1.3/<data>/` (pasta plana do pacote oficial, sem alterar nada) e script de diff entre pacotes | Estrutura decidida 23/10/2026 (pacotes 2026-07-01 e 2026-10-26 no repositório); script de diff pendente |
+| D-08 | Validar XSD sem assinatura digital (o S-1200 real veio sem) | Decidido 23/10/2026: o XSD oficial exige `ds:Signature`; o validador aceita só a falta dela e avisa uma vez (ADR 0003) |
 | D-09 | Qual pacote XSD usar: pela competência do lote ou pela data de envio. Recomendação: pela data de geração do `Id`, com opção de trocar na tela | Aberto |
 | D-10 | R012 pela data/hora de geração no `Id` do evento | Aberto: conferir formato do Id no MOS |
 | D-11 | R004 e R006 duplicam validações do eSocial; mantê-las para lote ainda não enviado | Aberto, recomendação: manter |

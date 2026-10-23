@@ -13,25 +13,21 @@ export const VERSOES_SUPORTADAS: Readonly<Record<string, Leiaute>> = {
   v_S_01_03_00: 'S-1.3',
 };
 
-/** Nome do evento no namespace -> tipo do MVP. */
+/**
+ * Nome do evento no namespace -> tipo do MVP. Confirmados pelo targetNamespace e pela
+ * documentação dos XSDs oficiais (pacotes 2026-07-01 e 2026-10-26), em 23/10/2026.
+ */
 export const EVENTOS_DO_MVP: Readonly<Record<string, TipoEvento>> = {
-  evtRemun: 'S-1200', // confirmado no S-1200 real
-  // CONFERIR NO LEIAUTE S-1.3: nome do evento no namespace do S-1010 (evtTabRubrica)
+  evtRemun: 'S-1200',
   evtTabRubrica: 'S-1010',
-  // CONFERIR NO LEIAUTE S-1.3: nome do evento no namespace do S-1202 (evtRmnRPPS)
   evtRmnRPPS: 'S-1202',
-  // CONFERIR NO LEIAUTE S-1.3: nome do evento no namespace do S-1207 (evtBenPrRP)
   evtBenPrRP: 'S-1207',
-  // CONFERIR NO LEIAUTE S-1.3: nome do evento no namespace do S-1210 (evtPgtos)
   evtPgtos: 'S-1210',
-  // CONFERIR NO LEIAUTE S-1.3: nome do evento no namespace do S-1299 (evtFechaEvPer)
   evtFechaEvPer: 'S-1299',
-  // CONFERIR NO LEIAUTE S-1.3: nome do evento no namespace do S-2299 (evtDeslig)
   evtDeslig: 'S-2299',
 };
 
 /** S-3000, fora do MVP: só gera o aviso "exclusões não consideradas". */
-// CONFERIR NO LEIAUTE S-1.3: nome do evento no namespace do S-3000 (evtExclusao)
 export const EVENTO_EXCLUSAO = 'evtExclusao';
 
 export function lerNamespaceEvento(ns: string): { evento: string; versao: string } | undefined {

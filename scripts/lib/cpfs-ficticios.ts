@@ -6,4 +6,5 @@
 export const CPFS_FICTICIOS: ReadonlySet<string> = new Set([
   '52998224725', // test/fixtures/s1200-lote-anonimizado.xml
   '12345678909', // exemplo didático do cálculo do DV
+  '00000000191', // citado no tipos.xsd oficial como número proibido (TS_cpfPenAlim e outros)
 ]);
