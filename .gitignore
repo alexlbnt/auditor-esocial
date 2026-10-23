@@ -1,0 +1,21 @@
+# dependências e build
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# segredos: só o .env.example é versionado
+.env*
+!.env.example
+
+# XMLs reais: nunca saem da máquina
+local-data/*
+!local-data/README.md
+
+# fora do repositório
+PROMPT.md
+desktop.ini
+.DS_Store
+.vscode/
