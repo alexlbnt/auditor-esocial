@@ -1,10 +1,14 @@
-// Auditoria pelo terminal: npm run audit -- <pasta-ou-zip-ou-xml>
-// Etapa 1.1: lê o lote e conta os eventos por tipo. Usa o mesmo core do navegador.
-// Nada de conteúdo de XML na saída; nomes de arquivo saem saneados.
+// Auditoria pelo terminal: npm run audit -- <pasta-ou-zip-ou-xml> [--pacote AAAA-MM-DD] [--detalhes]
+// Usa o mesmo core/audit.ts do navegador. Nada de conteúdo de XML na saída:
+// nomes de arquivo e mensagens do XSD saem saneados (sem 11 dígitos seguidos).
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, relative, sep } from 'node:path';
+import { parseArgs } from 'node:util';
+import { auditar } from '../src/core/audit.ts';
 import { sanearTexto } from '../src/core/findings/sanear.ts';
-import { lerLote, type ArquivoEntrada } from '../src/core/ingest/index.ts';
+import type { ArquivoEntrada } from '../src/core/ingest/index.ts';
+import { criarValidadorLibxml2 } from '../src/core/xsd/libxml2.ts';
+import { carregarPacote, listarPacotes, RAIZ_PACOTES } from './lib/pacotes-xsd.ts';
 
 function listar(pasta: string): string[] {
   return readdirSync(pasta, { withFileTypes: true }).flatMap((item) => {
@@ -13,11 +17,26 @@ function listar(pasta: string): string[] {
   });
 }
 
-const alvo = process.argv[2];
+const { values: opcoes, positionals } = parseArgs({
+  allowPositionals: true,
+  options: { pacote: { type: 'string' }, detalhes: { type: 'boolean', default: false } },
+});
+const alvo = positionals[0];
 if (!alvo) {
-  console.error('Uso: npm run audit -- <pasta | arquivo.zip | arquivo.xml>');
+  console.error(
+    'Uso: npm run audit -- <pasta | arquivo.zip | arquivo.xml> [--pacote AAAA-MM-DD] [--detalhes]',
+  );
   process.exit(2);
 }
+
+const pacotes = listarPacotes();
+if (opcoes.pacote && !pacotes.includes(opcoes.pacote)) {
+  const ha = pacotes.join(', ') || 'nenhum';
+  console.error(`Pacote ${opcoes.pacote} não encontrado em ${RAIZ_PACOTES}/ (há: ${ha})`);
+  process.exit(2);
+}
+// D-09 em aberto: sem --pacote, usa o mais recente disponível.
+const dataPacote = opcoes.pacote ?? pacotes.at(-1);
 
 const inicio = performance.now();
 const ehPasta = statSync(alvo).isDirectory();
@@ -26,7 +45,14 @@ const entradas: ArquivoEntrada[] = (ehPasta ? listar(alvo) : [alvo]).map((caminh
   bytes: new Uint8Array(readFileSync(caminho)),
 }));
 
-const resultado = lerLote(entradas);
+const validador = dataPacote ? criarValidadorLibxml2(carregarPacote(dataPacote)) : undefined;
+let resultado;
+try {
+  resultado = auditar(entradas, { validador });
+} finally {
+  validador?.dispose();
+}
+
 if (resultado.recusa) {
   const { limite, arquivo, valor, maximo } = resultado.recusa;
   const onde = arquivo ? ` (${sanearTexto(arquivo)})` : '';
@@ -38,22 +64,44 @@ const contar = (chaves: string[]) =>
   [...chaves.reduce((m, k) => m.set(k, (m.get(k) ?? 0) + 1), new Map<string, number>())].sort(
     ([a], [b]) => (a < b ? -1 : 1),
   );
+const lugar = (arquivo: string, posicao?: number) =>
+  `${sanearTexto(arquivo)}${posicao ? `#${posicao}` : ''}`;
 
 console.log(`Arquivos de entrada: ${entradas.length}`);
-console.log(`Eventos do MVP: ${resultado.eventos.length}`);
+if (resultado.xsd === 'validado') {
+  console.log(`XSD: pacote ${resultado.pacoteXsd}`);
+} else {
+  console.log(`XSD: NÃO VALIDADO (nenhum pacote em ${RAIZ_PACOTES}/). A R001 não rodou.`);
+}
+
+console.log(`Eventos que seguem para a auditoria: ${resultado.eventos.length}`);
 for (const [tipo, n] of contar(resultado.eventos.map((e) => e.tipo)))
   console.log(`  ${tipo}  ${n}`);
+
+console.log(`Reprovados no XSD (R001): ${resultado.reprovados.length}`);
+for (const [tipo, n] of contar(resultado.reprovados.map((r) => r.evento.tipo))) {
+  console.log(`  ${tipo}  ${n}`);
+}
+if (resultado.semAssinatura > 0) {
+  console.log(
+    `Aviso: ${resultado.semAssinatura} evento(s) sem assinatura digital, validados sem ela (D-08).`,
+  );
+}
 
 console.log(`Fora da auditoria: ${resultado.foraDaAuditoria.length}`);
 for (const [motivo, n] of contar(resultado.foraDaAuditoria.map((f) => f.motivo))) {
   console.log(`  ${motivo}  ${n}`);
 }
-if (process.argv.includes('--detalhes')) {
+
+if (opcoes.detalhes) {
+  for (const { evento, erros, total } of resultado.reprovados) {
+    const onde = lugar(evento.arquivo, evento.posicaoNoLote);
+    console.log(`  R001 ${onde} (${evento.tipo}): ${total} erro(s)`);
+    for (const e of erros) console.log(`    linha ${e.linha}: ${sanearTexto(e.mensagem)}`);
+  }
   for (const f of resultado.foraDaAuditoria) {
-    const posicao = f.posicaoNoLote ? `#${f.posicaoNoLote}` : '';
-    console.log(
-      `    ${sanearTexto(f.arquivo)}${posicao}  ${f.motivo}  ${sanearTexto(f.detalhe ?? '')}`,
-    );
+    const detalhe = sanearTexto(f.detalhe ?? '');
+    console.log(`  ${lugar(f.arquivo, f.posicaoNoLote)}  ${f.motivo}  ${detalhe}`);
   }
 }
 console.log(`Tempo: ${Math.round(performance.now() - inicio)} ms`);
