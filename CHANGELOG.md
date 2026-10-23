@@ -6,6 +6,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ### Adicionado
 
+- Motor de regras e achados (etapa 1.4): regras em ordem de código com falha isolada, "regra não executada" sempre listada, achado com chave que identifica o mesmo problema entre auditorias e saída com CPF mascarado. A R001 agora aparece como achado, inclusive quando todos os XMLs são reprovados. `npm run audit` mostra os achados por regra.
 - Leitura do S-1210 e do S-2299 (etapa 1.3b): pagamentos ligados ao demonstrativo por CPF + `tpPgto` + `perRef` + `ideDmDev`, regime de caixa (S-1210 de N ou N+1), desligamentos e demonstrativos de rescisão. `npm run audit` mostra pagamentos e desligamentos.
 - Leitura do S-1200 e do S-1010 e montagem do modelo por trabalhador (etapa 1.3a): demonstrativos com diferenças de períodos anteriores, tabela de rubricas válida na competência, retificação mais recente para os valores, `totais()` em centavos. `npm run audit` aceita `--competencia` e mostra o resumo do modelo.
 - Pacotes XSD oficiais S-1.3 de 01/07/2026 e 26/10/2026 em `schemas/xsd/S-1.3/`; `npm run audit` valida com eles.

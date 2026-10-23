@@ -59,6 +59,21 @@ describe.each(pacotes)('pacote oficial %s', (data) => {
     }
   });
 
+  it('todos reprovados: o modelo não sai, mas a R001 relata cada evento (7.3)', () => {
+    const ruim = fixture.replace('<cpfTrab>52998224725', '<cpfTrab>5299822472');
+    const v = criarValidadorLibxml2(pacote);
+    try {
+      const r = auditar(entrada(ruim), { validador: v, segredo: new TextEncoder().encode('s') });
+      if (r.recusa) throw new Error('recusado');
+      expect(r.modelo.tipo).toBe('sem-remuneracao');
+      expect(r.motor?.achados.map((a) => [a.regra, a.eventoId])).toEqual([
+        ['R001', 'ID1112223330000002026102014334200001'],
+      ]);
+    } finally {
+      v.dispose();
+    }
+  });
+
   it('reprova CPF com 10 dígitos e valor com vírgula', () => {
     const ruim = fixture
       .replace('<cpfTrab>52998224725', '<cpfTrab>5299822472')
