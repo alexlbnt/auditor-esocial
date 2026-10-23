@@ -32,8 +32,11 @@ describe('auditar', () => {
     expect(r.reprovados.map((x) => x.evento.id)).toEqual([umId(2)]);
     expect(r.foraDaAuditoria.map((f) => [f.arquivo, f.motivo])).toEqual([
       ['a.txt', 'nao-xml'],
+      // O XSD de brinquedo aceita o evento mínimo do builder, mas o parse exige ideEvento.
+      ['b.xml', 'leitura-falhou'],
       ['b.xml', 'evento-fora-do-mvp'],
     ]);
+    expect(r.modelo.tipo).toBe('sem-remuneracao');
     // O lote do builder não tem assinatura: D-08 aceita e conta.
     expect(r.semAssinatura).toBe(2);
   });
