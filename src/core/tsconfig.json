@@ -1,0 +1,13 @@
+{
+  // Fronteira do core: sem DOM e sem tipos do Node. Se algo daqui usar
+  // window, document ou Buffer, o typecheck falha.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": [],
+    "plugins": [],
+    "incremental": false
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["./**/*.test.ts"]
+}

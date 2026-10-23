@@ -1,0 +1,9 @@
+node_modules/
+.next/
+coverage/
+package-lock.json
+docs/arquitetura.md
+test/fixtures/
+**/fixtures/
+schemas/
+local-data/
