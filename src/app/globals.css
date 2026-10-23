@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+/* Direção B, "marca-texto" (D-13) */
+@theme {
+  --color-papel: #faf8f2;
+  --color-tinta: #1e1d1a;
+  --color-secundario: #5c5a53;
+  --color-linha: #e5e1d6;
+  --color-grifo: #ffe45c;
+  --color-erro: #b3261e;
+  --color-alerta: #a87a00;
+  --color-alerta-texto: #7a5a00;
+  --color-info: #4a5560;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-papel);
+  color: var(--color-tinta);
+}
