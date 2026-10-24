@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { carregarPacote, listarPacotes } from '../scripts/lib/pacotes-xsd';
 import { auditar } from '../src/core/audit';
-import { TABELAS_S_1_3 } from '../src/core/leiaute/S-1.3/tabelas';
+import { TABELAS_S_1_3, type TabelasLeiaute } from '../src/core/leiaute/S-1.3/tabelas';
 import { REGRAS } from '../src/core/rules/registry';
 import type { ContextoRegra } from '../src/core/rules/tipos';
 import { criarValidadorLibxml2 } from '../src/core/xsd/libxml2';
@@ -21,10 +21,23 @@ const pastaDa = (codigo: string) => readdirSync(CATALOGO).find((p) => p.startsWi
 const validador = criarValidadorLibxml2(carregarPacote(listarPacotes().at(-1) ?? ''));
 afterAll(() => validador.dispose());
 
-function auditarFixture(caminho: string) {
+/**
+ * Uma regra pode trazer fixtures/contexto.ts com `tabelas` FICTÍCIAS (ex.: R009, cuja
+ * tabela curada real começa vazia). Sem esse arquivo, valem as tabelas do S-1.3.
+ */
+async function tabelasDa(pasta: string): Promise<TabelasLeiaute> {
+  const contexto = join(CATALOGO, pasta, 'fixtures/contexto.ts');
+  if (!existsSync(contexto)) return TABELAS_S_1_3;
+  const modulo = (await import(`../${contexto}`)) as { tabelas: TabelasLeiaute };
+  return modulo.tabelas;
+}
+
+async function auditarFixture(pasta: string, nome: 'dispara' | 'limpo') {
+  const caminho = join(CATALOGO, pasta, `fixtures/${nome}.xml`);
   const r = auditar([{ nome: 'fixture.xml', bytes: new Uint8Array(readFileSync(caminho)) }], {
     validador,
     segredo: SEGREDO,
+    tabelas: await tabelasDa(pasta),
   });
   if (r.recusa) throw new Error('fixture recusada');
   return r;
@@ -101,13 +114,13 @@ describe.each(REGRAS.map((r) => [r.codigo, r] as const))('%s', (codigo, regra) =
     expect(regra.executar(cheio)).toEqual(regra.executar(cheio));
   });
 
-  it('fixtures/dispara.xml gera achado da regra', () => {
-    const r = auditarFixture(join(CATALOGO, pasta ?? '', 'fixtures/dispara.xml'));
+  it('fixtures/dispara.xml gera achado da regra', async () => {
+    const r = await auditarFixture(pasta ?? '', 'dispara');
     expect(r.motor?.achados.filter((a) => a.regra === codigo).length).toBeGreaterThan(0);
   });
 
-  it('fixtures/limpo.xml não gera achado da regra', () => {
-    const r = auditarFixture(join(CATALOGO, pasta ?? '', 'fixtures/limpo.xml'));
+  it('fixtures/limpo.xml não gera achado da regra', async () => {
+    const r = await auditarFixture(pasta ?? '', 'limpo');
     expect(r.motor, 'o motor rodou').toBeDefined();
     expect(r.motor?.achados.filter((a) => a.regra === codigo)).toEqual([]);
   });

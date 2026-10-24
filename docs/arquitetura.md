@@ -942,8 +942,8 @@ Cada ficha é o contrato da regra: o teste de contrato do catálogo (nível 3) c
 - **Objetivo:** pegar diferença entre o que o S-1210 diz que pagou e o que o demonstrativo do S-1200/S-1202/S-1207 fecha.
 - **Eventos e campos:** S-1200 ✅ `cpfTrab`, `ideDmDev`, `codRubr`, `ideTabRubr`, `vrRubr`, `perApur`. S-2299 ✅ `verbasResc/dmDev` (demonstrativo de rescisão, D-17). S-1210 ✅ `cpfBenef`, `infoPgto/{tpPgto, perRef, ideDmDev, vrLiq, dtPgto}`. S-1010 ✅ `tpRubr` (1 provento, 2 desconto, 3 informativa, 4 informativa dedutora). *Campos confirmados no XSD oficial em 23/10/2026.*
 - **Condição:** liga pagamento e demonstrativo por CPF + `tpPgto` + `perRef` + `ideDmDev` (D-16). O `tpPgto` diz a fonte do demonstrativo: 1 = S-1200, 2 = S-2299, 4 = S-1202, 5 = S-1207 (3 = S-2399, fora do MVP). Soma todos os pagamentos (`infoPgto`) do mesmo demonstrativo. Dispara se soma dos `vrLiq` ≠ proventos − descontos, calculados por `totais()` sobre o demonstrativo inteiro (inclusive diferenças de períodos anteriores, `infoPerAnt`).
-- **Não dispara quando:** o demonstrativo não tem pagamento no lote (isso é R011). Nenhum S-1210 no lote: um único Info "pagamentos não enviados" em vez de um achado por trabalhador.
-- **Severidade:** Erro. Rebaixa para Alerta quando alguma rubrica do demonstrativo não tem cadastro no S-1010 do lote, porque aí não dá para saber se é provento ou desconto.
+- **Não dispara quando:** o demonstrativo não tem pagamento no lote (isso é R011). Nenhum S-1210 no lote: um único Info "pagamentos não enviados" em vez de um achado por trabalhador. Nenhum S-1010 no lote: um único Info "tabela de rubricas não enviada" (sem `tpRubr` não dá para separar provento de desconto). *Incluído em 24/10/2026 (etapa 1.5).*
+- **Severidade:** Erro. Rebaixa para Alerta quando alguma rubrica do demonstrativo não tem cadastro no S-1010 do lote (ou tem `tpRubr` desconhecido), porque aí não dá para saber se é provento ou desconto; a causa aponta a rubrica quando é uma só.
 - **Exemplo:** demonstrativo fecha R$ 3.150,00, S-1210 pagou R$ 3.210,00.
 - **Sugestão:** procurar rubrica paga fora da folha ou adiantamento não descontado; retificar o evento errado.
 - **Pendências:** regime de caixa (S-1210 de N+1, ver 7.1). *Confirmado no XSD em 23/10/2026: `vrLiq` existe (líquido informado, não negativo) e `dtPgto` fica dentro do `perApur` do S-1210.*
@@ -951,12 +951,12 @@ Cada ficha é o contrato da regra: o teste de contrato do catálogo (nível 3) c
 ### R003 · Remuneração depois do desligamento (Erro)
 
 - **Objetivo:** pegar folha mensal de quem já saiu.
-- **Eventos e campos:** S-2299 ⚠️ `cpfTrab`, `matricula`, `dtDeslig`. S-1200 ✅ `infoPerApur`, `matricula`, `perApur`.
+- **Eventos e campos:** S-2299 ✅ `ideVinculo/{cpfTrab, matricula}`, `infoDeslig/dtDeslig`. S-1200 ✅ `infoPerApur`, `matricula`, `perApur`. *Confirmados no XSD oficial em 23/10/2026.*
 - **Condição:** existe S-2299 no lote com a mesma matrícula e `dtDeslig` anterior ao primeiro dia da competência, e o S-1200 tem `infoPerApur` para essa matrícula.
-- **Não dispara quando:** a remuneração está só em período anterior (diferenças retroativas são legítimas). Desligamento dentro da competência. Matrícula diferente do mesmo CPF (pode ser outro vínculo).
+- **Não dispara quando:** a remuneração está só em período anterior (diferenças retroativas são legítimas). Desligamento dentro da competência. Matrícula diferente do mesmo CPF (pode ser outro vínculo). Demonstrativo de rescisão (S-2299). No 13º (competência AAAA), o "primeiro dia" é 1º de janeiro.
 - **Exemplo:** desligado em 15/08/2026 com `infoPerApur` em 09/2026.
 - **Sugestão:** se a verba é rescisória, ela vai no S-2299; excluir ou retificar o S-1200.
-- **Pendências:** confirmar onde fica o grupo de período anterior no S-1.3.
+- **Pendências:** nenhuma. *O período anterior fica em `dmDev/infoPerAnt` (XSD oficial, 23/10/2026) e não entra na regra.*
 
 ### R004 · CPF com dígito verificador inválido (Erro)
 
@@ -1009,11 +1009,11 @@ Cada ficha é o contrato da regra: o teste de contrato do catálogo (nível 3) c
 
 - **Objetivo:** pegar rubrica com natureza remuneratória sem incidência de INSS, IRRF ou FGTS, ou o contrário.
 - **Eventos e campos:** S-1010 ⚠️ `natRubr`, `tpRubr`, `codIncCP`, `codIncIRRF`, `codIncFGTS`.
-- **Condição:** a combinação natureza → incidência não está entre as esperadas numa **tabela curada** (`src/core/rules/catalog/R009/tabela-natureza.ts`), montada pelo Alex a partir da Tabela 03 e do MOS. Cada linha da tabela tem fonte e data.
+- **Condição:** a combinação natureza → incidência não está entre as esperadas numa **tabela curada** (`src/core/leiaute/S-1.3/natureza-incidencia.ts`, entregue à regra por `ctx.tabelas`, como manda o item 3), montada pelo Alex a partir da Tabela 03 e do MOS. Cada linha da tabela tem fonte e data. Um achado por rubrica e incidência, com a causa `rubrica:<código>|<tabela>`. *Caminho alterado em 24/10/2026 (etapa 1.5): a regra não importa tabela.*
 - **Não dispara quando:** a natureza não está na tabela curada (silêncio, não achado). Sem S-1010 no lote (ver R008).
 - **Exemplo:** natureza de salário-base com `codIncCP` de "não incide".
 - **Sugestão:** revisar a incidência da rubrica no S-1010; se for exceção legítima (decisão judicial), ignorar com motivo.
-- **Pendências:** a tabela curada é o maior trabalho de domínio do projeto. Começar pelas 20 naturezas mais usadas nos clientes.
+- **Pendências:** a tabela curada é o maior trabalho de domínio do projeto. Começar pelas 20 naturezas mais usadas nos clientes. **Ela começa vazia**: até ser preenchida, a R009 não dispara. Os testes usam uma tabela fictícia (`fixtures/contexto.ts`).
 
 ### R010 · Incidência RGPS em servidor RPPS (Alerta)
 

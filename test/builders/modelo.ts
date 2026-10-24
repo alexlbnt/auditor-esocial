@@ -5,6 +5,7 @@ import {
   type Auditoria,
   type Centavos,
   type Demonstrativo,
+  type EventoFonte,
   type FonteDemonstrativo,
   type Origem,
   type Pessoa,
@@ -66,26 +67,54 @@ class PessoaBuilder {
     this.pessoa.demonstrativos.push(umDemonstrativo(id, itens, opcoes));
     return this;
   }
+  /** Pagamento do S-1210 (tpPgto 1 = S-1200, 2 = S-2299...). */
+  comPagamento(
+    demonstrativoId: string,
+    liquido: Centavos,
+    { tipoPagamento = '1', periodoReferencia = '2026-09', data = '2026-10-05' } = {},
+  ): this {
+    this.pessoa.pagamentos.push({
+      data,
+      periodoReferencia,
+      demonstrativoId,
+      tipoPagamento,
+      liquido,
+      origem: umaOrigem(`ID-S1210-${demonstrativoId}`, 'S-1210'),
+    });
+    return this;
+  }
+  comDesligamento(matricula: string, data: string): this {
+    this.pessoa.desligamentos.push({ matricula, data, origem: umaOrigem('ID-S2299', 'S-2299') });
+    return this;
+  }
 }
 
 class AuditoriaBuilder {
   private readonly rubricas = new Map<string, Rubrica>();
   private readonly pessoas = new Map<string, Pessoa>();
+  private readonly eventos: EventoFonte[] = [];
+  private competencia = '2026-09';
 
   comRubrica(
     codigo: string,
     classe: keyof typeof TIPO,
-    { tabela = '001', natureza = '1000' } = {},
+    {
+      tabela = '001',
+      natureza = '1000',
+      incidencias = { inss: '11', irrf: '11', fgts: '11' },
+    }: { tabela?: string; natureza?: string; incidencias?: Rubrica['incidencias'] } = {},
   ): this {
+    const origem = umaOrigem(`ID-S1010-${codigo}`, 'S-1010');
+    this.eventos.push({ origem, retificacao: false, vigente: true });
     this.rubricas.set(chaveRubrica(codigo, tabela), {
       codigo,
       tabela,
       descricao: `Rubrica ${codigo}`,
       natureza,
       tipo: TIPO[classe],
-      incidencias: { inss: '11', irrf: '11', fgts: '11' },
+      incidencias,
       validade: { inicio: '2026-01' },
-      origem: umaOrigem(`ID-S1010-${codigo}`, 'S-1010'),
+      origem,
     });
     return this;
   }
@@ -95,15 +124,20 @@ class AuditoriaBuilder {
     return this;
   }
 
+  naCompetencia(competencia: string): this {
+    this.competencia = competencia;
+    return this;
+  }
+
   /** Congelado em profundidade: uma regra não consegue alterar o que a próxima lê. */
   construir(): Readonly<Auditoria> {
     return congelar({
       leiaute: 'S-1.3',
       pacoteXsd: '2026-07-01',
       empregador: { tipoInscricao: '1', raiz: '11222333' },
-      competencia: '2026-09',
-      apuracao: 'mensal',
-      eventos: [],
+      competencia: this.competencia,
+      apuracao: this.competencia.length === 4 ? 'anual' : 'mensal',
+      eventos: this.eventos,
       rubricas: this.rubricas,
       pessoas: this.pessoas,
     });

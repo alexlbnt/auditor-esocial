@@ -60,6 +60,7 @@ describe('totais', () => {
   it('tpRubr desconhecido pela tabela da versão fica fora e é listado', () => {
     const t = totais(umDemonstrativo('A', [['1', 100_00]]), auditoria.rubricas, {
       tipoRubrica: {},
+      naturezaIncidencia: [],
     });
     expect(t).toMatchObject({ proventos: 0, rubricasSemTipo: ['1|001'] });
   });
