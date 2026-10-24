@@ -10,6 +10,7 @@ import { ehXml, expandirArquivos } from './arquivos.ts';
 import { LIMITES_RNF06, type Limites } from './limites.ts';
 import { conteudosDe, namespaceDe, proximoElemento, type Tag } from './tags.ts';
 import { decodificar } from './texto.ts';
+import type { AoProgredir } from '../progresso.ts';
 import type { ArquivoEntrada, EventoBruto, ItemFora, ResultadoIngest } from './tipos.ts';
 
 export type * from './tipos.ts';
@@ -71,6 +72,7 @@ function analisarEvento(xml: string): Analise {
 export function lerLote(
   entradas: readonly ArquivoEntrada[],
   limites: Readonly<Limites> = LIMITES_RNF06,
+  aoProgredir?: AoProgredir,
 ): ResultadoIngest {
   const expansao = expandirArquivos(entradas, limites);
   if (expansao.recusa) return { recusa: expansao.recusa };
@@ -82,7 +84,9 @@ export function lerLote(
     else foraDaAuditoria.push({ arquivo, posicaoNoLote, ...analise.fora });
   };
 
-  for (const { caminho, bytes } of expansao.arquivos) {
+  const total = expansao.arquivos.length;
+  for (const [i, { caminho, bytes }] of expansao.arquivos.entries()) {
+    aoProgredir?.({ etapa: 'lendo', feitos: i, total });
     if (!ehXml(caminho)) {
       foraDaAuditoria.push({ arquivo: caminho, motivo: 'nao-xml' });
       continue;
@@ -127,5 +131,6 @@ export function lerLote(
       registrar(caminho, 1, analisarEvento(texto));
     }
   }
+  aoProgredir?.({ etapa: 'lendo', feitos: total, total });
   return { eventos, foraDaAuditoria };
 }

@@ -19,3 +19,9 @@ PROMPT.md
 desktop.ini
 .DS_Store
 .vscode/
+
+# gerado por scripts/gerar-xsd-web.ts
+public/xsd/
+# Playwright
+test-results/
+playwright-report/

@@ -1,4 +1,5 @@
 import type { EventoBruto, ItemFora } from '../../ingest/tipos.ts';
+import type { AoProgredir } from '../../progresso.ts';
 import { ErroDeLeitura } from '../xml.ts';
 import { parseS1010, type DtoS1010 } from './s1010.ts';
 import { parseS1200, type DtoS1200 } from './s1200.ts';
@@ -28,10 +29,14 @@ export interface ResultadoLeitura {
 }
 
 /** XML de cada evento -> DTO. Evento sem leitor ainda vai para "fora da auditoria". */
-export function lerEventos(eventos: readonly EventoBruto[]): ResultadoLeitura {
+export function lerEventos(
+  eventos: readonly EventoBruto[],
+  aoProgredir?: AoProgredir,
+): ResultadoLeitura {
   const lidos: EventoLido[] = [];
   const foraDaAuditoria: ItemFora[] = [];
-  for (const evento of eventos) {
+  for (const [i, evento] of eventos.entries()) {
+    aoProgredir?.({ etapa: 'montando', feitos: i, total: eventos.length });
     const local = { arquivo: evento.arquivo, posicaoNoLote: evento.posicaoNoLote };
     try {
       switch (evento.tipo) {
@@ -64,5 +69,6 @@ export function lerEventos(eventos: readonly EventoBruto[]): ResultadoLeitura {
       });
     }
   }
+  aoProgredir?.({ etapa: 'montando', feitos: eventos.length, total: eventos.length });
   return { lidos, foraDaAuditoria };
 }

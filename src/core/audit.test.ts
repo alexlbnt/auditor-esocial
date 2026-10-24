@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { carregarPacote } from '../../scripts/lib/pacotes-xsd';
 import { bytes, umEvento, umId, umLote } from '../../test/builders/xml';
 import { auditar } from './audit';
+import type { Progresso } from './progresso';
 import { criarValidadorLibxml2 } from './xsd/libxml2';
 
 const validador = criarValidadorLibxml2(
@@ -57,5 +58,25 @@ describe('auditar', () => {
       bytesPorXml: 10,
     };
     expect(auditar(entradas, { limites }).recusa?.limite).toBe('tamanho-do-xml');
+  });
+});
+
+describe('auditar: progresso', () => {
+  it('passa pelas quatro etapas em ordem, e cada uma termina com feitos = total', () => {
+    const vistos: Progresso[] = [];
+    const lote = umLote([remun('52998224725', umId(1)), remun('12345678909', umId(2))]);
+    auditar([{ nome: 'a.xml', bytes: bytes(lote) }], {
+      validador,
+      segredo: new TextEncoder().encode('s'),
+      aoProgredir: (p) => vistos.push(p),
+    });
+    const etapas = [...new Set(vistos.map((p) => p.etapa))];
+    expect(etapas).toEqual(['lendo', 'validando', 'montando', 'auditando']);
+    for (const etapa of etapas) {
+      const daEtapa = vistos.filter((p) => p.etapa === etapa);
+      expect(daEtapa.at(-1)?.feitos, etapa).toBe(daEtapa.at(-1)?.total);
+      const feitos = daEtapa.map((p) => p.feitos);
+      expect(feitos, etapa).toEqual([...feitos].sort((a, b) => a - b));
+    }
   });
 });
