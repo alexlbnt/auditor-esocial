@@ -2,6 +2,7 @@
 
 import * as Comlink from 'comlink';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Achado } from '@/core/findings/tipos';
 import type { Progresso } from '@/core/progresso';
 import type { ApiDoWorker } from '@/workers/audit.worker';
 import type { ResumoDaAuditoria } from '@/workers/resumo';
@@ -43,6 +44,9 @@ export function useAuditoria() {
   const atual = useRef<WorkerAtivo | undefined>(undefined);
   // Cada worker tem uma geração: respostas de um worker já encerrado são ignoradas.
   const geracao = useRef(0);
+  // Os arquivos escolhidos (só as referências, não o conteúdo): reauditar com outra
+  // competência e "ver no XML" releem daqui.
+  const arquivosAtuais = useRef<File[]>([]);
 
   /** Cria o worker e começa a preparar o XSD. Não mexe no estado de forma síncrona. */
   const ligarWorker = useCallback(() => {
@@ -76,6 +80,7 @@ export function useAuditoria() {
     if (!corrente || arquivos.length === 0) return;
     const minha = geracao.current;
     const aindaEsta = () => geracao.current === minha;
+    arquivosAtuais.current = arquivos;
     setAviso(undefined);
     setEstado({ fase: 'auditando', progresso: undefined, arquivos: arquivos.length });
     try {
@@ -105,5 +110,16 @@ export function useAuditoria() {
     reiniciar();
   }, [reiniciar]);
 
-  return { estado, aviso, auditar, cancelar, recomecar };
+  const verNoXml = useCallback(async (achado: Achado) => {
+    const corrente = atual.current;
+    if (!corrente) return { erro: 'arquivo-nao-encontrado' as const };
+    return corrente.api.verNoXml(arquivosAtuais.current, achado);
+  }, []);
+
+  const reauditar = useCallback(
+    (competencia: string) => auditar(arquivosAtuais.current, competencia),
+    [auditar],
+  );
+
+  return { estado, aviso, auditar, reauditar, cancelar, recomecar, verNoXml };
 }

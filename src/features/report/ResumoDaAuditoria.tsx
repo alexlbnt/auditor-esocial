@@ -4,6 +4,7 @@ import type { ResumoDaAuditoria as Resumo } from '@/workers/resumo';
 import { formatarCompetencia, formatarQuantidade } from '@/shared/formatacao';
 import { Botao } from '@/shared/ui/Botao';
 import { Cartao } from '@/shared/ui/Cartao';
+import type { VerNoXml } from './CartaoDoAchado';
 import { Relatorio } from './Relatorio';
 
 const LIMITE: Record<string, string> = {
@@ -17,10 +18,16 @@ interface Props {
   resumo: Resumo;
   aoEscolherCompetencia: (competencia: string) => void;
   aoRecomecar: () => void;
+  aoVerNoXml: VerNoXml;
 }
 
 /** Resultado da auditoria: lote recusado, escolha de competência/empresa, ou o relatório. */
-export function ResumoDaAuditoria({ resumo, aoEscolherCompetencia, aoRecomecar }: Props) {
+export function ResumoDaAuditoria({
+  resumo,
+  aoEscolherCompetencia,
+  aoRecomecar,
+  aoVerNoXml,
+}: Props) {
   if (resumo.tipo === 'recusado') {
     const { limite, valor, maximo } = resumo.recusa;
     return (
@@ -65,7 +72,7 @@ export function ResumoDaAuditoria({ resumo, aoEscolherCompetencia, aoRecomecar }
 
   return (
     <div className="space-y-6">
-      <Relatorio resumo={resumo} />
+      <Relatorio resumo={resumo} aoVerNoXml={aoVerNoXml} />
       <Botao variante="secundario" onClick={aoRecomecar}>
         Nova auditoria
       </Botao>

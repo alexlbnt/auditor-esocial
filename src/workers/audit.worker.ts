@@ -2,11 +2,14 @@
 // (terminate), o que é imediato; a próxima auditoria cria outro.
 import * as Comlink from 'comlink';
 import { auditar } from '@/core/audit';
+import type { Achado } from '@/core/findings/tipos';
+import { lerLote } from '@/core/ingest/index';
 import type { ArquivoEntrada } from '@/core/ingest/tipos';
 import type { Progresso } from '@/core/progresso';
 import type { Validador } from '@/core/xsd/tipos';
 import { limitarProgresso } from './limitar-progresso';
 import { resumir, type ResumoDaAuditoria } from './resumo';
+import { trechoDoEvento, type TrechoDoXml } from './trecho-xml';
 
 /** Frequência máxima de progresso para a tela (RNF-04 pede pelo menos 1 por segundo). */
 const INTERVALO_PROGRESSO_MS = 150;
@@ -64,6 +67,30 @@ const api = {
       aoProgredir: progresso,
     });
     return resumir(resultado);
+  },
+
+  /**
+   * "Ver no XML": relê o arquivo local do achado (o texto bruto não fica em memória,
+   * RNF-05), separa o evento pela posição e devolve só o trecho em volta do campo.
+   */
+  async verNoXml(
+    arquivos: File[],
+    achado: Achado,
+  ): Promise<TrechoDoXml | { erro: 'arquivo-nao-encontrado' | 'evento-nao-encontrado' }> {
+    const arquivo = arquivos.find(
+      (f) => achado.arquivo === f.name || achado.arquivo.startsWith(`${f.name}/`),
+    );
+    if (!arquivo) return { erro: 'arquivo-nao-encontrado' };
+    const lote = lerLote([
+      { nome: arquivo.name, bytes: new Uint8Array(await arquivo.arrayBuffer()) },
+    ]);
+    const evento = lote.recusa
+      ? undefined
+      : lote.eventos.find(
+          (e) => e.arquivo === achado.arquivo && e.posicaoNoLote === achado.posicaoNoLote,
+        );
+    if (!evento) return { erro: 'evento-nao-encontrado' };
+    return trechoDoEvento(evento.xml, achado);
   },
 };
 

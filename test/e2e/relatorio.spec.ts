@@ -40,9 +40,12 @@ test('HU-02: cabeçalho, totais, comece por aqui, lista por trabalhador e fora d
   await page.getByLabel('Buscar por CPF, matrícula ou regra').fill('R003');
   await expect(page.getByTestId('contagem-visivel')).toHaveText('Mostrando 1 de 4 achado(s).');
   await page.getByLabel('Buscar por CPF, matrícula ou regra').fill('');
-  await page.getByRole('button', { name: 'Erro' }).click(); // desliga Erro
+  await page.getByRole('button', { name: 'Erro', exact: true }).click(); // desliga Erro
   await expect(page.getByTestId('contagem-visivel')).toHaveText('Mostrando 1 de 4 achado(s).');
-  await expect(page.getByRole('button', { name: 'Erro' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Erro', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
 });
 
 test('RNF-07: 10.000 achados rolam sem travar e o filtro responde em até 300 ms', async ({
@@ -67,7 +70,7 @@ test('RNF-07: 10.000 achados rolam sem travar e o filtro responde em até 300 ms
   const lista = page.getByTestId('lista-virtual');
   for (let i = 0; i < 20; i++) await lista.evaluate((el) => el.scrollBy(0, 4000));
   const inicio = Date.now();
-  await page.getByRole('button', { name: 'Erro' }).click();
+  await page.getByRole('button', { name: 'Erro', exact: true }).click();
   await expect(page.getByTestId('contagem-visivel')).toHaveText('Mostrando 0 de 10.000 achado(s).');
   const filtro = Date.now() - inicio;
   const longas = await page.evaluate(() => (window as unknown as { longas: number[] }).longas);
@@ -76,4 +79,51 @@ test('RNF-07: 10.000 achados rolam sem travar e o filtro responde em até 300 ms
   );
   expect(filtro).toBeLessThanOrEqual(300);
   expect(Math.max(0, ...longas)).toBeLessThanOrEqual(100);
+});
+
+test('HU-03: cartão do achado, ver no XML com a linha destacada e navegação', async ({ page }) => {
+  await auditar(page, loteDoRelatorio());
+  await page.getByTestId('linha-achado').filter({ hasText: 'R$ 2.760,00' }).click();
+  const cartao = page.getByRole('dialog');
+  await expect(cartao).toBeVisible();
+  await expect(cartao.getByRole('heading', { level: 2 })).toHaveText(
+    'O S-1210 pagou R$ 2.760,00, mas o demonstrativo fecha em R$ 2.700,00. Diferença de R$ 60,00.',
+  );
+  await expect(cartao.locator('mark')).toHaveText(['R$ 2.760,00', 'R$ 2.700,00', 'R$ 60,00']);
+  await expect(cartao).toContainText('R002 v1');
+  for (const secao of [
+    'O que vimos',
+    'Por que importa',
+    'Como corrigir',
+    'Onde está',
+    'Ver no XML',
+  ]) {
+    await expect(cartao.getByRole('heading', { name: secao })).toBeVisible();
+  }
+  await expect(cartao).toContainText('***.000.001-** · matr. 0001');
+
+  await cartao.getByRole('button', { name: 'Mostrar o trecho do XML' }).click();
+  const destaque = cartao.getByTestId('trecho-xml').locator('[data-destaque]');
+  await expect(destaque).toContainText('<vrLiq>2760.00</vrLiq>');
+  // Como texto: a tag aparece escrita, não vira elemento da página.
+  await expect(cartao.getByTestId('trecho-xml').locator('vrliq')).toHaveCount(0);
+
+  const posicao = cartao.getByText(/^\d+ de 4$/);
+  const antes = await posicao.textContent();
+  await cartao.getByRole('button', { name: 'Próximo →' }).click();
+  await expect(cartao.getByText(/^\d+ de 4$/)).not.toHaveText(antes ?? '');
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('HU-03: R001 mostra as mensagens do esquema e o campo no XML', async ({ page }) => {
+  await auditar(page, loteDoRelatorio());
+  await page.getByTestId('linha-achado').filter({ hasText: 'R001' }).click();
+  const cartao = page.getByRole('dialog');
+  await expect(cartao.getByRole('heading', { name: 'Mensagens do esquema' })).toBeVisible();
+  await cartao.getByRole('button', { name: 'Mostrar o trecho do XML' }).click();
+  await expect(cartao.getByTestId('trecho-xml').locator('[data-destaque]')).toContainText(
+    '<cpfTrab>1234567890</cpfTrab>',
+  );
 });
