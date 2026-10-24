@@ -6,6 +6,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ### Adicionado
 
+- Regras R002 (líquido pago diferente do demonstrativo), R003 (remuneração depois do desligamento) e R009 (incidência incoerente com a natureza; a tabela curada começa vazia) (etapa 1.5), com fixtures que disparam e que não disparam, e um lote golden com um erro plantado por regra.
 - Motor de regras e achados (etapa 1.4): regras em ordem de código com falha isolada, "regra não executada" sempre listada, achado com chave que identifica o mesmo problema entre auditorias e saída com CPF mascarado. A R001 agora aparece como achado, inclusive quando todos os XMLs são reprovados. `npm run audit` mostra os achados por regra.
 - Leitura do S-1210 e do S-2299 (etapa 1.3b): pagamentos ligados ao demonstrativo por CPF + `tpPgto` + `perRef` + `ideDmDev`, regime de caixa (S-1210 de N ou N+1), desligamentos e demonstrativos de rescisão. `npm run audit` mostra pagamentos e desligamentos.
 - Leitura do S-1200 e do S-1010 e montagem do modelo por trabalhador (etapa 1.3a): demonstrativos com diferenças de períodos anteriores, tabela de rubricas válida na competência, retificação mais recente para os valores, `totais()` em centavos. `npm run audit` aceita `--competencia` e mostra o resumo do modelo.

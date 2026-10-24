@@ -1,0 +1,96 @@
+{
+  "pacoteXsd": "2026-10-26",
+  "modelo": {
+    "competencia": "2026-09",
+    "trabalhadores": 3
+  },
+  "regrasExecutadas": [
+    {
+      "codigo": "R001",
+      "versao": 1
+    },
+    {
+      "codigo": "R002",
+      "versao": 1
+    },
+    {
+      "codigo": "R003",
+      "versao": 1
+    },
+    {
+      "codigo": "R009",
+      "versao": 1
+    }
+  ],
+  "naoExecutadas": [],
+  "foraDaAuditoria": [],
+  "achados": [
+    {
+      "regra": "R001",
+      "regraVersao": 1,
+      "severidade": "erro",
+      "chave": "zeAgoxyaEpkusBCtfdnyjnBlnbtolxEfsxcxopkpketttmhsxyma",
+      "evento": "S-1200",
+      "eventoId": "ID**********************************",
+      "arquivo": "golden/05-reprovado.xml",
+      "valores": {
+        "total": 1,
+        "erro1": "linha 1, coluna 0: Element '{http://www.esocial.gov.br/schema/evt/evtRemun/v_S_01_03_00}cpfTrab': [facet 'pattern'] The value '5299822472' is not accepted by the pattern '\\d{11}'."
+      }
+    },
+    {
+      "regra": "R002",
+      "regraVersao": 1,
+      "severidade": "erro",
+      "chave": "vBmiuplFqgdhBAibjadbbluFkChDnhxolmCufeADhntptuhgatdq",
+      "cpfMascarado": "***.982.247-**",
+      "matricula": "0001",
+      "evento": "S-1210",
+      "eventoId": "ID**********************************",
+      "arquivo": "golden/02-trabalhador-a.xml",
+      "campo": "vrLiq",
+      "valores": {
+        "esperado": 282000,
+        "encontrado": 288000,
+        "diferenca": 6000,
+        "proventos": 315000,
+        "descontos": 33000,
+        "pagamentos": 1
+      }
+    },
+    {
+      "regra": "R003",
+      "regraVersao": 1,
+      "severidade": "erro",
+      "chave": "oEACqzunhsCuxrhmmaDuqiDvfvvqlkmFFuvmzwjiAuyDhxBsEhDa",
+      "cpfMascarado": "***.456.789-**",
+      "matricula": "0002",
+      "evento": "S-1200",
+      "eventoId": "ID**********************************",
+      "arquivo": "golden/03-trabalhador-b.xml",
+      "campo": "infoPerApur",
+      "valores": {
+        "dataDesligamento": "2026-08-15",
+        "competencia": "2026-09"
+      }
+    },
+    {
+      "regra": "R009",
+      "regraVersao": 1,
+      "severidade": "alerta",
+      "chave": "dmnaefppqmlkflCcfrfzFzaywawgezevplxsjFkEfxeeqCcbzqaq",
+      "evento": "S-1010",
+      "eventoId": "ID**********************************",
+      "arquivo": "golden/01-rubricas.xml",
+      "campo": "codIncCP",
+      "valores": {
+        "rubrica": "7|001",
+        "natureza": "1000",
+        "encontrado": "00",
+        "esperado": "11",
+        "fonte": "FICTÍCIA (teste)"
+      },
+      "causa": "rubrica:7|001"
+    }
+  ]
+}

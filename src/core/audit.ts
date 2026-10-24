@@ -5,7 +5,7 @@ import type { ArquivoEntrada, EventoBruto, ItemFora, Recusa } from './ingest/tip
 import { montarAuditoria, type ResultadoMontagem } from './model/montar.ts';
 import type { Auditoria, Competencia } from './model/tipos.ts';
 import { lerEventos } from './parse/S-1.3/index.ts';
-import { TABELAS_S_1_3 } from './leiaute/S-1.3/tabelas.ts';
+import { TABELAS_S_1_3, type TabelasLeiaute } from './leiaute/S-1.3/tabelas.ts';
 import { executarRegras } from './rules/engine.ts';
 import { REGRAS } from './rules/registry.ts';
 import type { Regra, ResultadoMotor } from './rules/tipos.ts';
@@ -25,6 +25,8 @@ export interface OpcoesAuditoria {
   segredo?: Uint8Array;
   /** Para `duracaoMs` do motor. */
   relogio?: () => number;
+  /** Interpretação dos códigos; padrão: as tabelas do S-1.3 (testes injetam tabela fictícia). */
+  tabelas?: TabelasLeiaute;
   /** Catálogo; padrão: todas as regras do MVP. */
   regras?: readonly Regra[];
 }
@@ -76,6 +78,7 @@ export function auditar(
     segredo,
     relogio,
     regras = REGRAS,
+    tabelas = TABELAS_S_1_3,
   }: OpcoesAuditoria = {},
 ): ResultadoAuditoria {
   const lote = lerLote(entradas, limites);
@@ -110,7 +113,7 @@ export function auditar(
         regras,
         {
           auditoria,
-          tabelas: TABELAS_S_1_3,
+          tabelas,
           modeloDisponivel: modelo.tipo === 'pronta',
           xsd: { executado: Boolean(validacao), reprovados: validacao?.reprovados ?? [] },
         },
