@@ -4,6 +4,7 @@ import { lerLote, LIMITES_RNF06, type Limites } from './ingest/index.ts';
 import type { ArquivoEntrada, EventoBruto, ItemFora, Recusa } from './ingest/tipos.ts';
 import { montarAuditoria, type ResultadoMontagem } from './model/montar.ts';
 import type { Auditoria, Competencia } from './model/tipos.ts';
+import type { AoProgredir } from './progresso.ts';
 import { lerEventos } from './parse/S-1.3/index.ts';
 import { TABELAS_S_1_3, type TabelasLeiaute } from './leiaute/S-1.3/tabelas.ts';
 import { executarRegras } from './rules/engine.ts';
@@ -27,6 +28,8 @@ export interface OpcoesAuditoria {
   relogio?: () => number;
   /** Interpretação dos códigos; padrão: as tabelas do S-1.3 (testes injetam tabela fictícia). */
   tabelas?: TabelasLeiaute;
+  /** Progresso por etapa, item a item (o worker limita a frequência). */
+  aoProgredir?: AoProgredir;
   /** Catálogo; padrão: todas as regras do MVP. */
   regras?: readonly Regra[];
 }
@@ -89,20 +92,21 @@ export function auditar(
     relogio,
     regras = REGRAS,
     tabelas = TABELAS_S_1_3,
+    aoProgredir,
   }: OpcoesAuditoria = {},
 ): ResultadoAuditoria {
   const agora = relogio ?? (() => 0);
   const marcas = [agora()];
   const marcar = () => marcas.push(agora());
 
-  const lote = lerLote(entradas, limites);
+  const lote = lerLote(entradas, limites, aoProgredir);
   if (lote.recusa) return { recusa: lote.recusa };
   marcar();
 
-  const validacao = validador ? validarEventos(lote.eventos, validador) : undefined;
+  const validacao = validador ? validarEventos(lote.eventos, validador, aoProgredir) : undefined;
   const aprovados = validacao ? validacao.aprovados : lote.eventos;
   marcar();
-  const leitura = lerEventos(aprovados);
+  const leitura = lerEventos(aprovados, aoProgredir);
   marcar();
   const modelo = montarAuditoria(leitura.lidos, {
     ...(competencia ? { competencia } : {}),
@@ -126,6 +130,7 @@ export function auditar(
           rubricas: new Map(),
           pessoas: new Map(),
         };
+  aoProgredir?.({ etapa: 'auditando', feitos: 0, total: regras.length });
   const motor = segredo
     ? executarRegras(
         regras,
@@ -138,6 +143,7 @@ export function auditar(
         { segredo, ...(relogio ? { relogio } : {}) },
       )
     : undefined;
+  aoProgredir?.({ etapa: 'auditando', feitos: regras.length, total: regras.length });
   marcar();
 
   const duracao = (i: number) => (marcas[i + 1] ?? 0) - (marcas[i] ?? 0);

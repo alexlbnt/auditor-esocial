@@ -1,4 +1,5 @@
 import type { EventoBruto, ItemFora } from '../ingest/tipos.ts';
+import type { AoProgredir } from '../progresso.ts';
 import type { ErroXsd, Validador } from './tipos.ts';
 
 /** Evento reprovado no XSD: vira o achado R001 e não entra no modelo. */
@@ -27,6 +28,7 @@ export interface ResultadoValidacao {
 export function validarEventos(
   eventos: readonly EventoBruto[],
   validador: Validador,
+  aoProgredir?: AoProgredir,
 ): ResultadoValidacao {
   const resultado: ResultadoValidacao = {
     pacoteXsd: validador.pacote,
@@ -35,7 +37,8 @@ export function validarEventos(
     foraDaAuditoria: [],
     semAssinatura: 0,
   };
-  for (const evento of eventos) {
+  for (const [i, evento] of eventos.entries()) {
+    aoProgredir?.({ etapa: 'validando', feitos: i, total: eventos.length });
     const r = validador.validar(evento.xml, evento.namespace);
     const onde = { arquivo: evento.arquivo, posicaoNoLote: evento.posicaoNoLote };
     switch (r.status) {
@@ -66,5 +69,6 @@ export function validarEventos(
       if (r.assinaturaAusente) resultado.semAssinatura += 1;
     }
   }
+  aoProgredir?.({ etapa: 'validando', feitos: eventos.length, total: eventos.length });
   return resultado;
 }

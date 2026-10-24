@@ -14,6 +14,7 @@ Node 22.18+ (veja `.nvmrc`).
 npm ci
 npm run dev          # app em http://localhost:3000
 npm test             # Vitest
+npm run test:e2e     # Playwright (rode npm run build antes); PERF=1 inclui o RNF-04 no lote grande
 npm run lint         # ESLint, inclusive a fronteira do src/core
 npm run typecheck
 npm run checar-dados # XML fora de fixtures/ ou CPF válido fora da lista de fictícios

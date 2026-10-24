@@ -6,6 +6,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ### Adicionado
 
+- Auditoria no navegador (etapa 3.1): tela "Nova auditoria" para soltar o .zip ou os XMLs, com a promessa de que os arquivos são lidos no computador, progresso por etapa com contagem e botão de cancelar. A auditoria roda fora da thread da tela; um lote de 5.000 trabalhadores leva cerca de 7 s sem travar a tela.
 - Saída em CSV e tempo por etapa (etapa 1.6): `npm run audit -- <alvo> --saida <pasta>` grava achados, fora da auditoria e resumo, com CPF mascarado, prontos para o Excel. `npm run audit:local` compara a auditoria dos XMLs reais com uma linha de base.
 
 ### Alterado
