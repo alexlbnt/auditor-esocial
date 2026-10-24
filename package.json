@@ -20,6 +20,7 @@
     "test:e2e": "playwright test",
     "audit": "node scripts/audit-cli.ts",
     "audit:local": "node scripts/audit-cli.ts local-data --segredo-arquivo local-data/.segredo --saida local-data/.resultado --comparar local-data/.linha-de-base",
+    "demo": "node scripts/gerar-demo.ts",
     "checar-dados": "node scripts/checar-dados-reais.ts"
   },
   "dependencies": {
