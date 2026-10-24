@@ -98,6 +98,16 @@ describe('paraEnvio', () => {
     ]);
   });
 
+  it('tira o valor citado entre aspas nas mensagens, mas mantém o nome do campo', () => {
+    const msg =
+      "linha 1: Element '{http://www.esocial.gov.br/schema/evt/evtRemun/v_S_01_03_00}cpfTrab': " +
+      "[facet 'pattern'] The value '5299822472' is not accepted by the pattern '\d{11}'.";
+    const saida = paraEnvio({ ...achado, valores: { erro1: msg } });
+    expect(saida.valores.erro1).toBe(
+      "linha 1: Element 'cpfTrab': [facet '…'] The value '…' is not accepted by the pattern '…'.",
+    );
+  });
+
   it('recusa se sobrar 11 dígitos em algum lugar (última trava)', () => {
     expect(() => paraEnvio({ ...achado, chave: '12345678901' })).toThrow('11 dígitos');
   });

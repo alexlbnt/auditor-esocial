@@ -19,10 +19,22 @@ export interface AchadoParaEnvio {
 }
 
 const ONZE_DIGITOS = /\d{11}/;
+// A libxml2 cita o valor reprovado entre aspas simples (até um CPF de 10 dígitos,
+// que escapa da máscara de 11): no envio, o conteúdo entre aspas some.
+// Nome qualificado ('{namespace}cpfTrab') é do esquema, não do XML: fica o nome local.
+const ENTRE_ASPAS = /'([^']*)'/g;
+const NOME_QUALIFICADO = /^\{[^}]*\}([\w.-]+)$/;
+const textoParaEnvio = (texto: string) =>
+  sanearTexto(
+    texto.replace(ENTRE_ASPAS, (_, dentro: string) => {
+      const local = NOME_QUALIFICADO.exec(dentro)?.[1];
+      return local ? `'${local}'` : "'…'";
+    }),
+  );
 
 /**
  * CPF mascarado; nome de arquivo, Id do evento, matrícula, causa e textos dos
- * valores saneados. Números (centavos) passam como estão, a não ser que tenham
+ * valores saneados; nos textos dos valores, o que está entre aspas simples some. Números (centavos) passam como estão, a não ser que tenham
  * 11 dígitos ou mais: aí viram texto saneado. A última trava é conferir o JSON.
  */
 export function paraEnvio(achado: Achado): AchadoParaEnvio {
@@ -31,7 +43,7 @@ export function paraEnvio(achado: Achado): AchadoParaEnvio {
     valores[sanearTexto(nome)] =
       typeof valor === 'number' && !ONZE_DIGITOS.test(String(valor))
         ? valor
-        : sanearTexto(String(valor));
+        : textoParaEnvio(String(valor));
   }
   const saida: AchadoParaEnvio = {
     regra: achado.regra,

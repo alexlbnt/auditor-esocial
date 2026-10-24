@@ -34,8 +34,8 @@
       "eventoId": "ID**********************************",
       "arquivo": "golden/05-reprovado.xml",
       "valores": {
-        "total": 1,
-        "erro1": "linha 1, coluna 0: Element '{http://www.esocial.gov.br/schema/evt/evtRemun/v_S_01_03_00}cpfTrab': [facet 'pattern'] The value '5299822472' is not accepted by the pattern '\\d{11}'."
+        "total": "1",
+        "erro1": "linha 1, coluna 0: Element 'cpfTrab': [facet '…'] The value '…' is not accepted by the pattern '…'."
       }
     },
     {
@@ -55,7 +55,7 @@
         "diferenca": 6000,
         "proventos": 315000,
         "descontos": 33000,
-        "pagamentos": 1
+        "pagamentos": "1"
       }
     },
     {

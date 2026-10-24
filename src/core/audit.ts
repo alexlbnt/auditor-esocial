@@ -31,6 +31,15 @@ export interface OpcoesAuditoria {
   regras?: readonly Regra[];
 }
 
+/** Milissegundos por etapa (só com `relogio`): mostra onde o lote gasta tempo (RNF-01/02). */
+export interface TemposPorEtapa {
+  leitura: number;
+  xsd: number;
+  parse: number;
+  modelo: number;
+  regras: number;
+}
+
 /** Evento que passou pelo XSD, sem o texto do XML (que não fica em memória, RNF-05). */
 export type EventoAuditado = Omit<EventoBruto, 'xml'>;
 
@@ -51,6 +60,7 @@ export type ResultadoAuditoria =
       modelo: ResultadoMontagem;
       /** Achados das regras; ausente só se não houve segredo. */
       motor?: ResultadoMotor;
+      tempos?: TemposPorEtapa;
     };
 
 const porLugar = (a: ItemFora, b: ItemFora) =>
@@ -81,16 +91,24 @@ export function auditar(
     tabelas = TABELAS_S_1_3,
   }: OpcoesAuditoria = {},
 ): ResultadoAuditoria {
+  const agora = relogio ?? (() => 0);
+  const marcas = [agora()];
+  const marcar = () => marcas.push(agora());
+
   const lote = lerLote(entradas, limites);
   if (lote.recusa) return { recusa: lote.recusa };
+  marcar();
 
   const validacao = validador ? validarEventos(lote.eventos, validador) : undefined;
   const aprovados = validacao ? validacao.aprovados : lote.eventos;
+  marcar();
   const leitura = lerEventos(aprovados);
+  marcar();
   const modelo = montarAuditoria(leitura.lidos, {
     ...(competencia ? { competencia } : {}),
     ...(validacao ? { pacoteXsd: validacao.pacoteXsd } : {}),
   });
+  marcar();
 
   // Sem modelo (todos reprovados, competência a escolher...), as regras rodam sobre uma
   // auditoria vazia: a R001 ainda relata o XSD e as outras ficam "não executadas".
@@ -120,6 +138,16 @@ export function auditar(
         { segredo, ...(relogio ? { relogio } : {}) },
       )
     : undefined;
+  marcar();
+
+  const duracao = (i: number) => (marcas[i + 1] ?? 0) - (marcas[i] ?? 0);
+  const tempos: TemposPorEtapa = {
+    leitura: duracao(0),
+    xsd: duracao(1),
+    parse: duracao(2),
+    modelo: duracao(3),
+    regras: duracao(4),
+  };
 
   return {
     eventos: aprovados.map(semXml),
@@ -135,5 +163,6 @@ export function auditar(
     semAssinatura: validacao?.semAssinatura ?? 0,
     modelo,
     ...(motor ? { motor } : {}),
+    ...(relogio ? { tempos } : {}),
   };
 }

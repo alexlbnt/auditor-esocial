@@ -1,20 +1,30 @@
-// Auditoria pelo terminal: npm run audit -- <pasta-ou-zip-ou-xml> [--pacote AAAA-MM-DD] [--competencia AAAA-MM] [--detalhes]
+// Auditoria pelo terminal:
+//   npm run audit -- <pasta-ou-zip-ou-xml> [--pacote AAAA-MM-DD] [--competencia AAAA-MM]
+//                    [--saida <pasta>] [--detalhes]
+// --saida grava achados.csv, fora-da-auditoria.csv e resumo.txt (CPF mascarado).
+// --segredo-arquivo usa (ou cria) um segredo fixo, para a chave dos achados ser estável;
+// --comparar <pasta> compara o achados.csv com o de uma linha de base (npm run audit:local).
 // Usa o mesmo core/audit.ts do navegador. Nada de conteúdo de XML na saída:
 // nomes de arquivo e mensagens do XSD saem saneados (sem 11 dígitos seguidos).
 import { randomBytes } from 'node:crypto';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 import { auditar } from '../src/core/audit.ts';
+import { paraEnvio } from '../src/core/findings/envio.ts';
 import { sanearTexto } from '../src/core/findings/sanear.ts';
 import type { ArquivoEntrada } from '../src/core/ingest/index.ts';
 import { TABELAS_S_1_3 } from '../src/core/leiaute/S-1.3/tabelas.ts';
 import { totais } from '../src/core/model/totais.ts';
+import { REGRAS } from '../src/core/rules/registry.ts';
 import { criarValidadorLibxml2 } from '../src/core/xsd/libxml2.ts';
+import { compararAchados } from './lib/comparar.ts';
+import { csvDeAchados, csvForaDaAuditoria } from './lib/csv.ts';
 import { carregarPacote, listarPacotes, RAIZ_PACOTES } from './lib/pacotes-xsd.ts';
 
 function listar(pasta: string): string[] {
   return readdirSync(pasta, { withFileTypes: true }).flatMap((item) => {
+    if (item.name.startsWith('.')) return []; // .segredo, .resultado, .linha-de-base
     const caminho = join(pasta, item.name);
     return item.isDirectory() ? listar(caminho) : item.isFile() ? [caminho] : [];
   });
@@ -25,15 +35,26 @@ const { values: opcoes, positionals } = parseArgs({
   options: {
     pacote: { type: 'string' },
     competencia: { type: 'string' },
+    saida: { type: 'string' },
+    'segredo-arquivo': { type: 'string' },
+    comparar: { type: 'string' },
     detalhes: { type: 'boolean', default: false },
   },
 });
 const alvo = positionals[0];
 if (!alvo) {
   console.error(
-    'Uso: npm run audit -- <pasta | arquivo.zip | arquivo.xml> [--pacote AAAA-MM-DD] [--detalhes]',
+    'Uso: npm run audit -- <pasta | arquivo.zip | arquivo.xml> [--pacote AAAA-MM-DD] [--competencia AAAA-MM] [--saida <pasta>] [--detalhes]',
   );
   process.exit(2);
+}
+
+/** Sem conta, o segredo é da sessão; com --segredo-arquivo, fica salvo (só local). */
+function segredo(): Uint8Array {
+  const arquivo = opcoes['segredo-arquivo'];
+  if (!arquivo) return new Uint8Array(randomBytes(32));
+  if (!existsSync(arquivo)) writeFileSync(arquivo, randomBytes(32).toString('base64'));
+  return new Uint8Array(Buffer.from(readFileSync(arquivo, 'utf8').trim(), 'base64'));
 }
 
 const pacotes = listarPacotes();
@@ -59,7 +80,7 @@ try {
     ...(validador ? { validador } : {}),
     ...(opcoes.competencia ? { competencia: opcoes.competencia } : {}),
     // Segredo da sessão: sem conta, a chave dos achados vale só nesta execução.
-    segredo: new Uint8Array(randomBytes(32)),
+    segredo: segredo(),
     relogio: () => performance.now(),
   });
 } finally {
@@ -158,4 +179,60 @@ if (opcoes.detalhes) {
     console.log(`  ${lugar(f.arquivo, f.posicaoNoLote)}  ${f.motivo}  ${detalhe}`);
   }
 }
-console.log(`Tempo: ${Math.round(performance.now() - inicio)} ms`);
+const tempoTotal = Math.round(performance.now() - inicio);
+const tempos = resultado.tempos
+  ? Object.entries(resultado.tempos)
+      .map(([etapa, ms]) => `${etapa} ${Math.round(ms)}`)
+      .join(' · ')
+  : '';
+console.log(`Tempo: ${tempoTotal} ms (${tempos}, leitura do disco fora)`);
+
+if (opcoes.saida) {
+  const pasta = opcoes.saida;
+  mkdirSync(pasta, { recursive: true });
+  const competencia = modelo.tipo === 'pronta' ? modelo.auditoria.competencia : '';
+  const achados = (motor?.achados ?? []).map(paraEnvio);
+  writeFileSync(join(pasta, 'achados.csv'), csvDeAchados(achados, REGRAS, competencia));
+  writeFileSync(
+    join(pasta, 'fora-da-auditoria.csv'),
+    csvForaDaAuditoria(resultado.foraDaAuditoria, motor?.naoExecutadas ?? []),
+  );
+  const resumo = [
+    `Pente Fino · audit-cli · ${new Date().toISOString()}`,
+    `Arquivos de entrada: ${entradas.length}`,
+    `Pacote XSD: ${resultado.pacoteXsd ?? 'não validado'}`,
+    `Competência: ${competencia || modelo.tipo}`,
+    `Eventos auditados: ${resultado.eventos.length}; reprovados no XSD: ${resultado.reprovados.length}; sem assinatura: ${resultado.semAssinatura}`,
+    `Achados: ${achados.length}`,
+    ...contar(achados.map((a) => `${a.regra} ${a.severidade}`)).map(([k, n]) => `  ${k}  ${n}`),
+    `Fora da auditoria: ${resultado.foraDaAuditoria.length}`,
+    `Regras executadas: ${(motor?.regrasExecutadas ?? []).map((r) => `${r.codigo}@${r.versao}`).join(', ')}`,
+    `Tempo total: ${tempoTotal} ms (${tempos})`,
+    '',
+  ].join('\n');
+  writeFileSync(join(pasta, 'resumo.txt'), resumo);
+  console.log(`Saída gravada em ${pasta}/ (achados.csv, fora-da-auditoria.csv, resumo.txt)`);
+
+  const base = opcoes.comparar ? join(opcoes.comparar, 'achados.csv') : undefined;
+  if (base && existsSync(base)) {
+    const c = compararAchados(
+      readFileSync(base, 'utf8'),
+      readFileSync(join(pasta, 'achados.csv'), 'utf8'),
+    );
+    console.log(
+      `Comparação com ${opcoes.comparar}/: ${c.novos.length} novo(s), ${c.resolvidos.length} resolvido(s), ${c.mudaram.length} mudaram, ${c.iguais} iguais`,
+    );
+    const mostrar = (rotulo: string, linhas: string[]) => {
+      for (const l of linhas.slice(0, 20)) console.log(`  ${rotulo} ${l}`);
+      if (linhas.length > 20) console.log(`  ${rotulo} ... e mais ${linhas.length - 20}`);
+    };
+    mostrar('+', c.novos);
+    mostrar('-', c.resolvidos);
+    mostrar('~', c.mudaram);
+    if (c.novos.length + c.resolvidos.length + c.mudaram.length > 0) process.exitCode = 1;
+  } else if (base) {
+    console.log(
+      `Sem linha de base em ${opcoes.comparar}/: para criar, copie ${pasta}/ para lá depois de revisar.`,
+    );
+  }
+}
