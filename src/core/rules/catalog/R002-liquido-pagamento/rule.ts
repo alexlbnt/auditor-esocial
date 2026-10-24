@@ -47,7 +47,7 @@ export const R002: Regra = {
         {
           severidade: 'info',
           origem: primeiro.dm.origem,
-          valores: { motivo: 'sem-S-1210', demonstrativos: pares.length },
+          valores: { motivo: 'sem-S-1210', demonstrativos: String(pares.length) },
           discriminador: 'sem-S-1210',
         },
       ];
@@ -57,7 +57,7 @@ export const R002: Regra = {
         {
           severidade: 'info',
           origem: primeiro.dm.origem,
-          valores: { motivo: 'sem-S-1010', demonstrativos: pares.length },
+          valores: { motivo: 'sem-S-1010', demonstrativos: String(pares.length) },
           discriminador: 'sem-S-1010',
         },
       ];
@@ -87,7 +87,7 @@ export const R002: Regra = {
           severidade: 'alerta',
           valores: {
             encontrado: pago,
-            pagamentos: pagos.length,
+            pagamentos: String(pagos.length),
             rubricasSemCadastro: naoClassificadas.join(', '),
           },
           ...(naoClassificadas.length === 1 && unica ? { causa: `rubrica:${unica}` } : {}),
@@ -101,7 +101,7 @@ export const R002: Regra = {
             diferenca: pago - t.liquido,
             proventos: t.proventos,
             descontos: t.descontos,
-            pagamentos: pagos.length,
+            pagamentos: String(pagos.length),
           },
         });
       }

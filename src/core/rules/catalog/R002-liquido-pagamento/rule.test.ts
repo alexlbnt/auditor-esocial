@@ -52,7 +52,7 @@ describe('R002', () => {
           diferenca: 60_00,
           proventos: 3150_00,
           descontos: 330_00,
-          pagamentos: 1,
+          pagamentos: '1',
         },
       },
     ]);
@@ -128,7 +128,7 @@ describe('R002', () => {
       .comPessoa(CPF, (p) => p.comDemonstrativo('A', [...itensA]))
       .comPessoa('12345678909', (p) => p.comDemonstrativo('B', [['1', 1_00]]));
     expect(rodar(a.construir())).toMatchObject([
-      { severidade: 'info', valores: { motivo: 'sem-S-1210', demonstrativos: 2 } },
+      { severidade: 'info', valores: { motivo: 'sem-S-1210', demonstrativos: '2' } },
     ]);
   });
 
@@ -137,7 +137,7 @@ describe('R002', () => {
       p.comDemonstrativo('A', [...itensA]).comPagamento('A', 1_00),
     );
     expect(rodar(a.construir())).toMatchObject([
-      { severidade: 'info', valores: { motivo: 'sem-S-1010', demonstrativos: 1 } },
+      { severidade: 'info', valores: { motivo: 'sem-S-1010', demonstrativos: '1' } },
     ]);
   });
 

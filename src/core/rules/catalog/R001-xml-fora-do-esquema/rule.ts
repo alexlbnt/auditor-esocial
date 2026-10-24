@@ -20,7 +20,7 @@ export const R001: Regra = {
 
   executar({ xsd }) {
     return xsd.reprovados.map(({ evento, erros, total }): AchadoBruto => {
-      const valores: Record<string, string | number> = { total };
+      const valores: Record<string, string | number> = { total: String(total) };
       erros.forEach((e, i) => {
         valores[`erro${i + 1}`] = `linha ${e.linha}, coluna ${e.coluna}: ${e.mensagem}`;
       });

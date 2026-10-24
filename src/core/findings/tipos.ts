@@ -6,7 +6,10 @@ export type Severidade = 'erro' | 'alerta' | 'info';
 /** Ordem do mais grave para o mais leve. */
 export const GRAVIDADE: Readonly<Record<Severidade, number>> = { erro: 0, alerta: 1, info: 2 };
 
-/** Valores do achado: dinheiro em centavos (number); o resto como texto. */
+/**
+ * Valores do achado. **Número é sempre dinheiro em centavos** (a tela e as exportações
+ * formatam como R$); contagens, datas e códigos vão como texto.
+ */
 export type Valores = Readonly<Record<string, string | number>>;
 
 /** O que a regra devolve. Sem textos: título, explicação e sugestão vêm da regra. */

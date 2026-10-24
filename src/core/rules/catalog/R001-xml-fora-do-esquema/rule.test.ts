@@ -46,7 +46,11 @@ describe('R001', () => {
       eventoId: 'ID-A',
       arquivo: 'lote.zip/a.xml',
       posicaoNoLote: 2,
-      valores: { total: 7, erro1: 'linha 1, coluna 0: erro 1', erro5: 'linha 5, coluna 0: erro 5' },
+      valores: {
+        total: '7',
+        erro1: 'linha 1, coluna 0: erro 1',
+        erro5: 'linha 5, coluna 0: erro 5',
+      },
     });
     expect(achado?.valores).not.toHaveProperty('erro6');
   });
