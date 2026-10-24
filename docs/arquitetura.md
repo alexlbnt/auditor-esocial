@@ -931,11 +931,11 @@ Cada ficha é o contrato da regra: o teste de contrato do catálogo (nível 3) c
 
 - **Objetivo:** apontar arquivo que o eSocial rejeitaria por estrutura.
 - **Eventos e campos:** todos os do escopo. Validação contra o pacote XSD escolhido para a competência (D-09).
-- **Condição:** a libxml2 retorna erro de validação. Um achado por arquivo, com até 5 mensagens e linha/coluna.
+- **Condição:** a libxml2 retorna erro de validação. Um achado por **evento** reprovado (um arquivo do lote pode ter vários eventos), com o total de erros e até 5 mensagens com linha/coluna. Roda mesmo quando nenhum evento sobra para o modelo (estado "todos reprovados" da 7.3). *Alterado em 23/10/2026 (etapa 1.4, ADR 0006): antes, "um achado por arquivo".*
 - **Não dispara quando:** falta a assinatura digital, se o XSD permitir validar sem ela (D-08). XML que nem é bem-formado vira erro de entrada (seção 7.3), não R001.
 - **Exemplo:** `vrRubr` com vírgula decimal.
 - **Sugestão:** corrigir na folha e gerar o XML de novo; não editar o XML na mão.
-- **Pendências:** D-07 (estrutura dos pacotes), D-08 (assinatura).
+- **Pendências:** nenhuma; D-07 e D-08 decididas em 23/10/2026. Sem pacote XSD, a R001 aparece como "não executada".
 
 ### R002 · Líquido pago diferente do demonstrativo (Erro)
 

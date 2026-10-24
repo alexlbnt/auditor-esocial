@@ -1,6 +1,7 @@
 // Auditoria pelo terminal: npm run audit -- <pasta-ou-zip-ou-xml> [--pacote AAAA-MM-DD] [--competencia AAAA-MM] [--detalhes]
 // Usa o mesmo core/audit.ts do navegador. Nada de conteúdo de XML na saída:
 // nomes de arquivo e mensagens do XSD saem saneados (sem 11 dígitos seguidos).
+import { randomBytes } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, relative, sep } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -57,6 +58,9 @@ try {
   resultado = auditar(entradas, {
     ...(validador ? { validador } : {}),
     ...(opcoes.competencia ? { competencia: opcoes.competencia } : {}),
+    // Segredo da sessão: sem conta, a chave dos achados vale só nesta execução.
+    segredo: new Uint8Array(randomBytes(32)),
+    relogio: () => performance.now(),
   });
 } finally {
   validador?.dispose();
@@ -124,6 +128,18 @@ if (modelo.tipo === 'pronta') {
   console.log(`Modelo: mais de um empregador no lote (${lista}).`);
 } else {
   console.log('Modelo: nenhum S-1200 para montar.');
+}
+
+const { motor } = resultado;
+if (motor) {
+  console.log(`Achados: ${motor.achados.length} (regras em ${Math.round(motor.duracaoMs)} ms)`);
+  const porRegra = contar(motor.achados.map((a) => `${a.regra} ${a.severidade}`));
+  for (const [chave, n] of porRegra) console.log(`  ${chave}  ${n}`);
+  const executadas = motor.regrasExecutadas.map((r) => `${r.codigo}@${r.versao}`).join(', ');
+  console.log(`  regras executadas: ${executadas || 'nenhuma'}`);
+  for (const n of motor.naoExecutadas) {
+    console.log(`  ${n.codigo} não executada: ${n.motivo}${n.erro ? ` (${n.erro})` : ''}`);
+  }
 }
 
 console.log(`Fora da auditoria: ${resultado.foraDaAuditoria.length}`);

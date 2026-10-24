@@ -1,10 +1,14 @@
-// Orquestra a auditoria: ingest -> XSD (R001) -> parse -> modelo -> [regras, etapa 1.4+].
+// Orquestra a auditoria: ingest -> XSD -> parse -> modelo -> regras (R001 relata o XSD).
 // O mesmo caminho roda no navegador (worker), no Vitest e no audit-cli.
 import { lerLote, LIMITES_RNF06, type Limites } from './ingest/index.ts';
 import type { ArquivoEntrada, EventoBruto, ItemFora, Recusa } from './ingest/tipos.ts';
 import { montarAuditoria, type ResultadoMontagem } from './model/montar.ts';
-import type { Competencia } from './model/tipos.ts';
+import type { Auditoria, Competencia } from './model/tipos.ts';
 import { lerEventos } from './parse/S-1.3/index.ts';
+import { TABELAS_S_1_3 } from './leiaute/S-1.3/tabelas.ts';
+import { executarRegras } from './rules/engine.ts';
+import { REGRAS } from './rules/registry.ts';
+import type { Regra, ResultadoMotor } from './rules/tipos.ts';
 import type { Validador } from './xsd/tipos.ts';
 import { validarEventos, type EventoReprovado } from './xsd/validar-eventos.ts';
 
@@ -14,6 +18,15 @@ export interface OpcoesAuditoria {
   limites?: Readonly<Limites>;
   /** Competência escolhida quando o lote traz mais de uma. */
   competencia?: Competencia;
+  /**
+   * Segredo da chave HMAC dos achados (da conta ou da sessão). Sem ele as regras
+   * não rodam: um segredo fixo deixaria a chave reversível por força bruta.
+   */
+  segredo?: Uint8Array;
+  /** Para `duracaoMs` do motor. */
+  relogio?: () => number;
+  /** Catálogo; padrão: todas as regras do MVP. */
+  regras?: readonly Regra[];
 }
 
 /** Evento que passou pelo XSD, sem o texto do XML (que não fica em memória, RNF-05). */
@@ -34,6 +47,8 @@ export type ResultadoAuditoria =
       semAssinatura: number;
       /** Modelo canônico pronto, ou o que impede montá-lo (escolher competência etc.). */
       modelo: ResultadoMontagem;
+      /** Achados das regras; ausente só se não houve segredo. */
+      motor?: ResultadoMotor;
     };
 
 const porLugar = (a: ItemFora, b: ItemFora) =>
@@ -54,7 +69,14 @@ const semXml = (e: EventoBruto): EventoAuditado => ({
 
 export function auditar(
   entradas: readonly ArquivoEntrada[],
-  { validador, limites = LIMITES_RNF06, competencia }: OpcoesAuditoria = {},
+  {
+    validador,
+    limites = LIMITES_RNF06,
+    competencia,
+    segredo,
+    relogio,
+    regras = REGRAS,
+  }: OpcoesAuditoria = {},
 ): ResultadoAuditoria {
   const lote = lerLote(entradas, limites);
   if (lote.recusa) return { recusa: lote.recusa };
@@ -66,6 +88,35 @@ export function auditar(
     ...(competencia ? { competencia } : {}),
     ...(validacao ? { pacoteXsd: validacao.pacoteXsd } : {}),
   });
+
+  // Sem modelo (todos reprovados, competência a escolher...), as regras rodam sobre uma
+  // auditoria vazia: a R001 ainda relata o XSD e as outras ficam "não executadas".
+  const pacoteXsd = validacao?.pacoteXsd;
+  const auditoria: Auditoria =
+    modelo.tipo === 'pronta'
+      ? modelo.auditoria
+      : {
+          leiaute: 'S-1.3',
+          ...(pacoteXsd ? { pacoteXsd } : {}),
+          empregador: { tipoInscricao: '', raiz: '' },
+          competencia: competencia ?? '',
+          apuracao: 'mensal',
+          eventos: [],
+          rubricas: new Map(),
+          pessoas: new Map(),
+        };
+  const motor = segredo
+    ? executarRegras(
+        regras,
+        {
+          auditoria,
+          tabelas: TABELAS_S_1_3,
+          modeloDisponivel: modelo.tipo === 'pronta',
+          xsd: { executado: Boolean(validacao), reprovados: validacao?.reprovados ?? [] },
+        },
+        { segredo, ...(relogio ? { relogio } : {}) },
+      )
+    : undefined;
 
   return {
     eventos: aprovados.map(semXml),
@@ -80,5 +131,6 @@ export function auditar(
     ...(validacao ? { pacoteXsd: validacao.pacoteXsd } : {}),
     semAssinatura: validacao?.semAssinatura ?? 0,
     modelo,
+    ...(motor ? { motor } : {}),
   };
 }
