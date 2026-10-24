@@ -22,3 +22,7 @@ Lote fictício "grande": 5.000 trabalhadores, 10.300 eventos (S-1200 com 40 rubr
 ## Confirmado
 
 A hipótese do item 4 do doc ("a libxml2-wasm funciona dentro de um Web Worker no Next.js 16 com Turbopack") vale, com a importação sob demanda acima.
+
+## Atualização em 24/10/2026 (etapa 3.3): corrida entre o último progresso e a resposta
+
+O CI pegou a tela parada em "Auditando as regras · 4 de 4" com a auditoria já terminada. O último progresso e a resposta final chegam por mensagens separadas do comlink, e às vezes a resposta vem primeiro; o progresso atrasado sobrescrevia o estado "concluída". Agora `useAuditoria` ignora progresso que chega depois da resposta (ou do erro). Verificado repetindo o e2e 3 vezes (15 de 15).

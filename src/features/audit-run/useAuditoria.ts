@@ -83,6 +83,10 @@ export function useAuditoria() {
     arquivosAtuais.current = arquivos;
     setAviso(undefined);
     setEstado({ fase: 'auditando', progresso: undefined, arquivos: arquivos.length });
+    // O último progresso e a resposta final chegam por mensagens separadas, e às vezes
+    // a resposta vem primeiro: progresso que chega depois do fim é ignorado, senão a
+    // tela voltaria para "auditando" e ficaria parada lá.
+    let terminou = false;
     try {
       // Sem isto, arquivos soltos durante a preparação seriam auditados sem o XSD.
       await corrente.pronto;
@@ -90,11 +94,15 @@ export function useAuditoria() {
         arquivos,
         competencia ? { competencia } : {},
         Comlink.proxy((progresso: Progresso) => {
-          if (aindaEsta()) setEstado({ fase: 'auditando', progresso, arquivos: arquivos.length });
+          if (aindaEsta() && !terminou) {
+            setEstado({ fase: 'auditando', progresso, arquivos: arquivos.length });
+          }
         }),
       );
+      terminou = true;
       if (aindaEsta()) setEstado({ fase: 'concluida', resumo });
     } catch {
+      terminou = true;
       if (aindaEsta()) setEstado({ fase: 'erro', codigo: 'falha-na-auditoria' });
     }
   }, []);
