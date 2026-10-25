@@ -8,6 +8,7 @@ import { formatarCompetencia, formatarQuantidade } from '@/shared/formatacao';
 import { Cartao } from '@/shared/ui/Cartao';
 import { IconeSeveridade, rotuloSeveridade } from '@/shared/ui/IconeSeveridade';
 import { ListaVirtual } from '@/shared/ui/ListaVirtual';
+import { CartaoDoAchado, type VerNoXml } from './CartaoDoAchado';
 import { fraseDoAchado, rotuloRubrica } from './frases';
 import {
   GRUPO_DO_LOTE,
@@ -25,10 +26,13 @@ const ALTURA_LINHA = 56;
 const ALTURA_LISTA = 560;
 const MAX_FORA_NA_TELA = 50;
 
-const TITULO = new Map(REGRAS.map((r) => [r.codigo, r.titulo]));
+const REGRA = new Map(REGRAS.map((r) => [r.codigo, r]));
+const tituloDe = (codigo: string) => REGRA.get(codigo)?.titulo ?? codigo;
 
 /** HU-02: entender em segundos o tamanho do problema. */
-export function Relatorio({ resumo }: { resumo: Concluido }) {
+export function Relatorio({ resumo, aoVerNoXml }: { resumo: Concluido; aoVerNoXml: VerNoXml }) {
+  /** Chave do achado aberto no cartão (HU-03). */
+  const [aberto, setAberto] = useState<string | undefined>(undefined);
   const [severidades, setSeveridades] = useState<ReadonlySet<Severidade>>(new Set(SEVERIDADES));
   const [busca, setBusca] = useState('');
   const buscaAdiada = useDeferredValue(busca);
@@ -42,6 +46,17 @@ export function Relatorio({ resumo }: { resumo: Concluido }) {
     [grupos, severidades, buscaAdiada],
   );
   const comece = useMemo(() => comecePorAqui(resumo.achados), [resumo.achados]);
+  // Anterior/próximo andam pelos achados visíveis, na ordem da lista.
+  const achadosVisiveis = useMemo(
+    () => linhas.flatMap((l) => (l.tipo === 'achado' ? [l.achado] : [])),
+    [linhas],
+  );
+  const indiceAberto = aberto ? achadosVisiveis.findIndex((a) => a.chave === aberto) : -1;
+  const achadoAberto = achadosVisiveis[indiceAberto];
+  const vizinho = (passo: number) => {
+    const alvo = achadosVisiveis[indiceAberto + passo];
+    return alvo ? () => setAberto(alvo.chave) : undefined;
+  };
 
   const total = (s: Severidade) => resumo.achados.filter((a) => a.severidade === s).length;
   const comAchado = new Set(resumo.achados.map((a) => a.cpf).filter(Boolean));
@@ -120,7 +135,7 @@ export function Relatorio({ resumo }: { resumo: Concluido }) {
             ) : (
               <>
                 <span className="bg-grifo px-1 font-mono">{comece.regra}</span> ·{' '}
-                {TITULO.get(comece.regra)}:{' '}
+                {tituloDe(comece.regra)}:{' '}
                 <strong>
                   {formatarQuantidade(comece.quantidade)}{' '}
                   {rotuloSeveridade(comece.severidade).toLowerCase()}(s)
@@ -180,7 +195,7 @@ export function Relatorio({ resumo }: { resumo: Concluido }) {
             altura={ALTURA_LISTA}
             rotulo="Achados por trabalhador"
             chave={(l) => (l.tipo === 'grupo' ? `g:${l.grupo.id}` : `a:${l.achado.chave}`)}
-            renderizar={(l) => <LinhaDoRelatorio linha={l} />}
+            renderizar={(l) => <LinhaDoRelatorio linha={l} aoAbrir={setAberto} />}
           />
         )}
       </section>
@@ -215,6 +230,19 @@ export function Relatorio({ resumo }: { resumo: Concluido }) {
           </ul>
         )}
       </Cartao>
+
+      {achadoAberto && (
+        <CartaoDoAchado
+          key={achadoAberto.chave}
+          achado={achadoAberto}
+          regra={REGRA.get(achadoAberto.regra)}
+          posicao={{ atual: indiceAberto + 1, total: achadosVisiveis.length }}
+          aoAnterior={vizinho(-1)}
+          aoProximo={vizinho(1)}
+          aoFechar={() => setAberto(undefined)}
+          aoVerNoXml={aoVerNoXml}
+        />
+      )}
     </div>
   );
 }
@@ -228,7 +256,7 @@ function Dado({ rotulo, valor, mono = false }: { rotulo: string; valor: string; 
   );
 }
 
-function LinhaDoRelatorio({ linha }: { linha: Linha }) {
+function LinhaDoRelatorio({ linha, aoAbrir }: { linha: Linha; aoAbrir: (chave: string) => void }) {
   if (linha.tipo === 'grupo') {
     const { grupo } = linha;
     return (
@@ -251,10 +279,12 @@ function LinhaDoRelatorio({ linha }: { linha: Linha }) {
     );
   }
   const { achado } = linha;
-  const titulo = TITULO.get(achado.regra) ?? achado.regra;
+  const titulo = tituloDe(achado.regra) ?? achado.regra;
   return (
-    <div
-      className="flex h-full items-center gap-3 border-b border-linha px-4 pl-8"
+    <button
+      type="button"
+      onClick={() => aoAbrir(achado.chave)}
+      className="flex h-full w-full items-center gap-3 border-b border-linha px-4 pl-8 text-left hover:bg-grifo/30 focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-tinta"
       data-testid="linha-achado"
     >
       <IconeSeveridade severidade={achado.severidade} />
@@ -266,6 +296,6 @@ function LinhaDoRelatorio({ linha }: { linha: Linha }) {
       <span className="ml-auto hidden shrink-0 font-mono text-xs text-secundario sm:inline">
         {achado.evento}
       </span>
-    </div>
+    </button>
   );
 }

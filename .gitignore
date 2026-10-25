@@ -25,3 +25,6 @@ public/xsd/
 # Playwright
 test-results/
 playwright-report/
+
+# lotes fictícios de demonstração (npm run demo)
+.demo/

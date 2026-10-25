@@ -1,6 +1,5 @@
 'use client';
 
-import { useRef } from 'react';
 import { ResumoDaAuditoria } from '@/features/report/ResumoDaAuditoria';
 import { ZonaDeArquivos } from '@/features/upload/ZonaDeArquivos';
 import { Botao } from '@/shared/ui/Botao';
@@ -15,12 +14,9 @@ const ERRO: Record<'xsd-indisponivel' | 'falha-na-auditoria', string> = {
 
 /** HU-01: enviar o lote. Os arquivos ficam neste computador. */
 export function NovaAuditoria() {
-  const { estado, aviso, auditar, cancelar, recomecar } = useAuditoria();
-  // Os arquivos ficam guardados só para auditar de novo com a competência escolhida.
-  const ultimos = useRef<File[]>([]);
+  const { estado, aviso, auditar, reauditar, cancelar, recomecar, verNoXml } = useAuditoria();
 
   const escolher = (arquivos: File[]) => {
-    ultimos.current = arquivos;
     void auditar(arquivos);
   };
 
@@ -37,7 +33,8 @@ export function NovaAuditoria() {
     return (
       <ResumoDaAuditoria
         resumo={estado.resumo}
-        aoEscolherCompetencia={(c) => void auditar(ultimos.current, c)}
+        aoEscolherCompetencia={(c) => void reauditar(c)}
+        aoVerNoXml={verNoXml}
         aoRecomecar={recomecar}
       />
     );
