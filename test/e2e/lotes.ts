@@ -125,3 +125,46 @@ export function loteDoRelatorio(): Buffer {
     ),
   );
 }
+
+/** HU-04: a mesma rubrica sem S-1010 (77) em 3 trabalhadores, mais um líquido diferente. */
+export function loteComCausaComum(): Buffer {
+  const enc = new TextEncoder();
+  const item = (codRubr: string, vrRubr: string) => ({ codRubr, vrRubr });
+  const eventos = [umS1010({ id: umId(901), codRubr: '1' })];
+  for (let i = 1; i <= 3; i++) {
+    const cpf = cpfFicticio(i);
+    eventos.push(
+      umS1200({
+        id: umId(i * 10),
+        cpf,
+        dmDev: [
+          {
+            ideDmDev: `F${i}`,
+            grupos: [{ matricula: `000${i}`, itens: [item('1', '1000.00'), item('77', '50.00')] }],
+          },
+        ],
+      }),
+      umS1210({
+        id: umId(i * 10 + 1),
+        cpf,
+        perApur: '2026-10',
+        pagamentos: [{ ideDmDev: `F${i}`, vrLiq: '1050.00' }],
+      }),
+    );
+  }
+  const d = cpfFicticio(4);
+  eventos.push(
+    umS1200({
+      id: umId(50),
+      cpf: d,
+      dmDev: [{ ideDmDev: 'F4', grupos: [{ matricula: '0004', itens: [item('1', '1000.00')] }] }],
+    }),
+    umS1210({
+      id: umId(51),
+      cpf: d,
+      perApur: '2026-10',
+      pagamentos: [{ ideDmDev: 'F4', vrLiq: '999.00' }],
+    }),
+  );
+  return Buffer.from(enc.encode(umLote(eventos)));
+}

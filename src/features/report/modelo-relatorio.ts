@@ -1,5 +1,5 @@
-// Lógica do relatório (HU-02), sem React: agrupar por trabalhador, ordenar pela maior
-// severidade, filtrar e escolher o "Comece por aqui". Testada em modelo-relatorio.test.ts.
+// Lógica do relatório (HU-02 e HU-04), sem React: agrupar por trabalhador, por regra ou
+// por causa, ordenar pela maior severidade, filtrar e escolher o "Comece por aqui". Testada em modelo-relatorio.test.ts.
 import { mascararCpf } from '@/core/findings/cpf';
 import { GRAVIDADE, type Achado, type Severidade } from '@/core/findings/tipos';
 import type { TrabalhadorNaTela } from '@/workers/resumo';
@@ -8,7 +8,7 @@ import type { TrabalhadorNaTela } from '@/workers/resumo';
 export const GRUPO_DO_LOTE = 'lote';
 
 export interface Grupo {
-  /** CPF (só em memória) ou GRUPO_DO_LOTE. */
+  /** CPF (só em memória), código da regra, causa, GRUPO_DO_LOTE ou GRUPO_SEM_CAUSA. */
   id: string;
   rotulo: string;
   matriculas: string[];
@@ -30,6 +30,31 @@ const porGravidade = (a: Achado, b: Achado) =>
   GRAVIDADE[a.severidade] - GRAVIDADE[b.severidade] ||
   (a.regra < b.regra ? -1 : a.regra > b.regra ? 1 : 0);
 
+/** Visões do relatório (HU-02 e HU-04). */
+export type Visao = 'trabalhador' | 'regra' | 'causa';
+
+/** Achados sem causa comum, na visão por causa. */
+export const GRUPO_SEM_CAUSA = 'sem-causa';
+
+function agrupar(achados: readonly Achado[], chave: (a: Achado) => string): Map<string, Achado[]> {
+  const grupos = new Map<string, Achado[]>();
+  for (const a of achados) {
+    const id = chave(a);
+    const lista = grupos.get(id);
+    if (lista) lista.push(a);
+    else grupos.set(id, [a]);
+  }
+  return grupos;
+}
+
+const ordenarGrupos = (grupos: Grupo[]) =>
+  grupos.sort(
+    (a, b) =>
+      GRAVIDADE[a.pior] - GRAVIDADE[b.pior] ||
+      b.achados.length - a.achados.length ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+
 /**
  * Um grupo por trabalhador com achado, mais o do lote. Ordem: pior severidade,
  * depois quantidade de achados, depois CPF (estável).
@@ -39,26 +64,66 @@ export function agruparPorTrabalhador(
   trabalhadores: readonly TrabalhadorNaTela[],
 ): Grupo[] {
   const matriculas = new Map(trabalhadores.map((t) => [t.cpf, t.matriculas]));
-  const porCpf = new Map<string, Achado[]>();
-  for (const a of achados) {
-    const id = a.cpf ?? GRUPO_DO_LOTE;
-    const lista = porCpf.get(id);
-    if (lista) lista.push(a);
-    else porCpf.set(id, [a]);
-  }
-  const grupos: Grupo[] = [...porCpf].map(([id, lista]) => ({
+  const grupos = [...agrupar(achados, (a) => a.cpf ?? GRUPO_DO_LOTE)].map(([id, lista]) => ({
     id,
     rotulo: id === GRUPO_DO_LOTE ? 'Lote e cadastros' : mascararCpf(id),
     matriculas: id === GRUPO_DO_LOTE ? [] : (matriculas.get(id) ?? []),
     pior: pior(lista),
     achados: [...lista].sort(porGravidade),
   }));
-  return grupos.sort(
-    (a, b) =>
-      GRAVIDADE[a.pior] - GRAVIDADE[b.pior] ||
-      b.achados.length - a.achados.length ||
-      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
-  );
+  return ordenarGrupos(grupos);
+}
+
+/** HU-04: uma linha por regra, com a quantidade de achados (pior severidade primeiro). */
+export function agruparPorRegra(
+  achados: readonly Achado[],
+  titulo: (codigo: string) => string,
+): Grupo[] {
+  const grupos = [...agrupar(achados, (a) => a.regra)].map(([codigo, lista]) => ({
+    id: codigo,
+    rotulo: `${codigo} · ${titulo(codigo)}`,
+    matriculas: [],
+    pior: pior(lista),
+    achados: [...lista].sort(porGravidade),
+  }));
+  return ordenarGrupos(grupos);
+}
+
+/**
+ * HU-04: achados que se resolvem com uma correção só (mesma `causa`), da causa que
+ * mais resolve para a que menos resolve. Os sem causa comum vão para um grupo no fim.
+ */
+export function agruparPorCausa(
+  achados: readonly Achado[],
+  rotularCausa: (causa: string) => string,
+): Grupo[] {
+  const porCausa = agrupar(achados, (a) => a.causa ?? GRUPO_SEM_CAUSA);
+  const semCausa = porCausa.get(GRUPO_SEM_CAUSA);
+  porCausa.delete(GRUPO_SEM_CAUSA);
+  const grupos: Grupo[] = [...porCausa]
+    .map(([causa, lista]) => ({
+      id: causa,
+      rotulo: rotularCausa(causa),
+      matriculas: [],
+      pior: pior(lista),
+      achados: [...lista].sort(porGravidade),
+    }))
+    .sort(
+      (a, b) =>
+        b.achados.length - a.achados.length ||
+        GRAVIDADE[a.pior] - GRAVIDADE[b.pior] ||
+        (a.id < b.id ? -1 : 1),
+    );
+  if (semCausa) {
+    grupos.push({
+      id: GRUPO_SEM_CAUSA,
+      rotulo: 'Achados sem causa comum',
+      matriculas: [],
+      pior: pior(semCausa),
+      achados: [...semCausa].sort(porGravidade),
+    });
+  }
+  return grupos;
 }
 
 export interface Filtro {
@@ -69,10 +134,22 @@ export interface Filtro {
 
 const soDigitos = (s: string) => s.replace(/\D/g, '');
 
-function grupoCombina(g: Grupo, termo: string, digitos: string): boolean {
+/**
+ * A busca olha cada achado (não só o grupo), para valer nas três visões: regra pelo
+ * código; CPF a partir de 3 dígitos; matrícula do achado ou do trabalhador do grupo.
+ */
+function combina(
+  a: Achado,
+  grupo: Grupo,
+  termo: string,
+  digitos: string,
+  ehRegra: boolean,
+): boolean {
   if (!termo) return true;
-  if (digitos.length >= 3 && g.id !== GRUPO_DO_LOTE && g.id.includes(digitos)) return true;
-  return g.matriculas.some((m) => m.toLowerCase().includes(termo));
+  if (ehRegra) return a.regra.toLowerCase().startsWith(termo);
+  if (digitos.length >= 3 && a.cpf?.includes(digitos)) return true;
+  if (a.matricula?.toLowerCase().includes(termo)) return true;
+  return grupo.matriculas.some((m) => m.toLowerCase().includes(termo));
 }
 
 /** Linhas da lista virtualizada: cabeçalho do grupo e seus achados que passam no filtro. */
@@ -82,10 +159,8 @@ export function linhasFiltradas(grupos: readonly Grupo[], { severidades, busca }
   const ehRegra = /^r\d{1,3}$/.test(termo);
   const linhas: Linha[] = [];
   for (const grupo of grupos) {
-    const combinaGrupo = ehRegra || grupoCombina(grupo, termo, digitos);
-    if (!combinaGrupo) continue;
     const visiveis = grupo.achados.filter(
-      (a) => severidades.has(a.severidade) && (!ehRegra || a.regra.toLowerCase().startsWith(termo)),
+      (a) => severidades.has(a.severidade) && combina(a, grupo, termo, digitos, ehRegra),
     );
     if (visiveis.length === 0) continue;
     linhas.push({ tipo: 'grupo', grupo, visiveis: visiveis.length });

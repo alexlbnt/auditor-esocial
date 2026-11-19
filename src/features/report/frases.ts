@@ -10,6 +10,12 @@ export function rotuloRubrica(chave: string): string {
 }
 const listaDeRubricas = (v: unknown) => String(v).split(', ').map(rotuloRubrica).join(', ');
 
+/** "Diferença de R$ 60,00." ou, quando pagou menos, "Diferença de R$ 1,00 a menos." */
+const diferenca = (v: unknown) =>
+  typeof v === 'number' && v < 0
+    ? `Diferença de ${formatarReais(-v)} a menos.`
+    : `Diferença de ${dinheiro(v)}.`;
+
 const dinheiro = (v: unknown) => (typeof v === 'number' ? formatarReais(v) : '?');
 const data = (v: unknown) => {
   const [ano, mes, dia] = String(v).split('-');
@@ -32,7 +38,7 @@ export function fraseDoAchado(achado: Achado, titulo: string): string {
       if (v.rubricasSemCadastro) {
         return `O S-1210 pagou ${dinheiro(v.encontrado)}, mas não deu para conferir: ${listaDeRubricas(v.rubricasSemCadastro)} sem cadastro no S-1010.`;
       }
-      return `O S-1210 pagou ${dinheiro(v.encontrado)}, mas o demonstrativo fecha em ${dinheiro(v.esperado)}. Diferença de ${dinheiro(v.diferenca)}.`;
+      return `O S-1210 pagou ${dinheiro(v.encontrado)}, mas o demonstrativo fecha em ${dinheiro(v.esperado)}. ${diferenca(v.diferenca)}`;
     case 'R003':
       return `Desligado em ${data(v.dataDesligamento)}, mas tem folha de ${formatarCompetencia(String(v.competencia))}.`;
     case 'R009':

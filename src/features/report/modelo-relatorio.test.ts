@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { Achado, Severidade } from '@/core/findings/tipos';
 import { fraseDoAchado } from './frases';
 import {
+  agruparPorCausa,
+  agruparPorRegra,
   agruparPorTrabalhador,
   comecePorAqui,
   GRUPO_DO_LOTE,
+  GRUPO_SEM_CAUSA,
   linhasFiltradas,
 } from './modelo-relatorio';
 
@@ -150,6 +153,12 @@ describe('fraseDoAchado', () => {
       'O S-1210 pagou R$ 2.880,00, mas o demonstrativo fecha em R$ 2.820,00. Diferença de R$ 60,00.',
     ],
     [
+      achado('R002', 'erro', {
+        valores: { esperado: 100000, encontrado: 99900, diferenca: -100 },
+      }),
+      'O S-1210 pagou R$ 999,00, mas o demonstrativo fecha em R$ 1.000,00. Diferença de R$ 1,00 a menos.',
+    ],
+    [
       achado('R002', 'alerta', { valores: { encontrado: 100, rubricasSemCadastro: '77|001' } }),
       'O S-1210 pagou R$ 1,00, mas não deu para conferir: rubrica 77 (tabela 001) sem cadastro no S-1010.',
     ],
@@ -177,5 +186,55 @@ describe('fraseDoAchado', () => {
     [achado('R099', 'info'), 'Título da regra'],
   ])('%#', (a, frase) => {
     expect(fraseDoAchado(a, 'Título da regra')).toBe(frase);
+  });
+});
+
+describe('HU-04: visões por regra e por causa', () => {
+  const achados = [
+    achado('R002', 'erro', { cpf: A }),
+    achado('R002', 'erro', { cpf: B }),
+    achado('R002', 'alerta', { cpf: B, causa: 'rubrica:77|001' }),
+    achado('R009', 'alerta', { causa: 'rubrica:77|001' }),
+    achado('R009', 'alerta', { causa: 'rubrica:8|001' }),
+    achado('R003', 'erro', { cpf: A, matricula: '0001' }),
+  ];
+
+  it('por regra: uma linha por regra, pior severidade e depois a mais frequente', () => {
+    const grupos = agruparPorRegra(achados, (c) => `Título ${c}`);
+    expect(grupos.map((g) => [g.id, g.rotulo, g.achados.length, g.pior])).toEqual([
+      ['R002', 'R002 · Título R002', 3, 'erro'],
+      ['R003', 'R003 · Título R003', 1, 'erro'],
+      ['R009', 'R009 · Título R009', 2, 'alerta'],
+    ]);
+  });
+
+  it('por causa: da que mais resolve para a que menos; sem causa no fim', () => {
+    const grupos = agruparPorCausa(achados, (c) => `Corrija ${c}`);
+    expect(grupos.map((g) => [g.id, g.achados.length])).toEqual([
+      ['rubrica:77|001', 2],
+      ['rubrica:8|001', 1],
+      [GRUPO_SEM_CAUSA, 3],
+    ]);
+    expect(grupos.at(-1)?.rotulo).toBe('Achados sem causa comum');
+    expect(grupos[0]?.achados.map((a) => a.regra)).toEqual(['R002', 'R009']);
+  });
+
+  it('a busca olha cada achado, então CPF e matrícula funcionam nas visões por regra e causa', () => {
+    const porRegra = agruparPorRegra(achados, (c) => c);
+    const deA = linhasFiltradas(porRegra, { severidades: TODAS, busca: '529.982' });
+    expect(
+      deA
+        .filter((l) => l.tipo === 'achado')
+        .map((l) => (l.tipo === 'achado' ? l.achado.regra : '')),
+    ).toEqual(['R002', 'R003']);
+    const matricula = linhasFiltradas(porRegra, { severidades: TODAS, busca: '0001' });
+    expect(matricula.filter((l) => l.tipo === 'achado')).toHaveLength(1);
+    const porCausa = agruparPorCausa(achados, (c) => c);
+    const r009 = linhasFiltradas(porCausa, { severidades: TODAS, busca: 'r009' });
+    expect(
+      r009
+        .filter((l) => l.tipo === 'grupo')
+        .map((l) => (l.tipo === 'grupo' ? `${l.grupo.id}:${l.visiveis}` : '')),
+    ).toEqual(['rubrica:77|001:1', 'rubrica:8|001:1']);
   });
 });

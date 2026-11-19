@@ -6,6 +6,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ### Adicionado
 
+- Visões por regra e por causa (etapa 3.4): abas para ver os achados por trabalhador, por regra (quantos de cada) ou por causa ("Corrija a rubrica 77 e resolva 3 achados"). Filtro e busca valem nas três.
 - Cartão do achado (etapa 3.3): ao clicar num achado, a frase com os valores grifados, o que vimos (esperado, encontrado, diferença), por que importa, como corrigir, onde está e o trecho do XML com a linha do campo destacada, relido do arquivo no seu computador. Anterior e próximo dentro dos filtros.
 - Relatório na tela (etapa 3.2): cabeçalho da auditoria, totais por severidade, trabalhadores sem achado, "Comece por aqui" com a correção que mais resolve, lista por trabalhador (pior severidade primeiro) com a frase de cada achado em linguagem de DP, filtro por severidade, busca por CPF, matrícula ou regra e o bloco "fora da auditoria" detalhado. 10.000 achados rolam e filtram sem travar.
 - Auditoria no navegador (etapa 3.1): tela "Nova auditoria" para soltar o .zip ou os XMLs, com a promessa de que os arquivos são lidos no computador, progresso por etapa com contagem e botão de cancelar. A auditoria roda fora da thread da tela; um lote de 5.000 trabalhadores leva cerca de 7 s sem travar a tela.
@@ -13,6 +14,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ### Alterado
 
+- Diferença negativa no líquido aparece como "a menos" em vez de valor com sinal.
 - Mensagens do XSD enviadas para fora do navegador não citam mais o valor reprovado; o nome do campo continua.
 - Regras R002 (líquido pago diferente do demonstrativo), R003 (remuneração depois do desligamento) e R009 (incidência incoerente com a natureza; a tabela curada começa vazia) (etapa 1.5), com fixtures que disparam e que não disparam, e um lote golden com um erro plantado por regra.
 - Motor de regras e achados (etapa 1.4): regras em ordem de código com falha isolada, "regra não executada" sempre listada, achado com chave que identifica o mesmo problema entre auditorias e saída com CPF mascarado. A R001 agora aparece como achado, inclusive quando todos os XMLs são reprovados. `npm run audit` mostra os achados por regra.

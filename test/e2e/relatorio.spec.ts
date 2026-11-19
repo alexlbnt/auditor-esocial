@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { loteDoRelatorio, loteGrande } from './lotes.ts';
+import { loteComCausaComum, loteDoRelatorio, loteGrande } from './lotes.ts';
 
 async function auditar(page: Page, buffer: Buffer, nome = 'lote.xml') {
   await page.goto('/auditorias/nova');
@@ -125,5 +125,45 @@ test('HU-03: R001 mostra as mensagens do esquema e o campo no XML', async ({ pag
   await cartao.getByRole('button', { name: 'Mostrar o trecho do XML' }).click();
   await expect(cartao.getByTestId('trecho-xml').locator('[data-destaque]')).toContainText(
     '<cpfTrab>1234567890</cpfTrab>',
+  );
+});
+
+test('HU-04: visões por causa e por regra, com busca e teclado nas abas', async ({ page }) => {
+  await auditar(page, loteComCausaComum());
+  await expect(page.getByTestId('comece-por-aqui')).toHaveText(
+    'Corrija a rubrica 77 (tabela 001) e resolva 3 achados.',
+  );
+
+  await page.getByRole('tab', { name: 'Por causa' }).click();
+  await expect(page.getByRole('tab', { name: 'Por causa' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  const lista = page.getByTestId('lista-virtual');
+  const primeiro = lista.getByRole('listitem').first();
+  await expect(primeiro).toContainText('Corrija a rubrica 77 (tabela 001)');
+  await expect(primeiro).toContainText('resolve 3 achado(s)');
+  await expect(lista).toContainText('Achados sem causa comum');
+
+  await page.getByRole('tab', { name: 'Por regra' }).click();
+  await expect(lista.getByRole('listitem').first()).toContainText(
+    'R002 · Líquido pago diferente do demonstrativo',
+  );
+  await page.getByLabel('Buscar por CPF, matrícula ou regra').fill('000.004'); // o que aparece de ***.000.004-**;
+  await expect(page.getByTestId('contagem-visivel')).toHaveText('Mostrando 1 de 4 achado(s).');
+  await page.getByLabel('Buscar por CPF, matrícula ou regra').fill('');
+
+  // Teclado: setas trocam de aba.
+  await page.getByRole('tab', { name: 'Por regra' }).focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('tab', { name: 'Por trabalhador' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('tab', { name: 'Por trabalhador' })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(page.getByRole('tab', { name: 'Por causa' })).toHaveAttribute(
+    'aria-selected',
+    'true',
   );
 });

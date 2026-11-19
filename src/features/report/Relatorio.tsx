@@ -10,12 +10,17 @@ import { IconeSeveridade, rotuloSeveridade } from '@/shared/ui/IconeSeveridade';
 import { ListaVirtual } from '@/shared/ui/ListaVirtual';
 import { CartaoDoAchado, type VerNoXml } from './CartaoDoAchado';
 import { fraseDoAchado, rotuloRubrica } from './frases';
+import { mascararCpf } from '@/core/findings/cpf';
 import {
   GRUPO_DO_LOTE,
+  GRUPO_SEM_CAUSA,
+  agruparPorCausa,
+  agruparPorRegra,
   agruparPorTrabalhador,
   comecePorAqui,
   linhasFiltradas,
   type Linha,
+  type Visao,
 } from './modelo-relatorio';
 import { MOTIVO_FORA, MOTIVO_NAO_EXECUTADA } from './textos';
 
@@ -29,6 +34,18 @@ const MAX_FORA_NA_TELA = 50;
 const REGRA = new Map(REGRAS.map((r) => [r.codigo, r]));
 const tituloDe = (codigo: string) => REGRA.get(codigo)?.titulo ?? codigo;
 
+const VISOES: { visao: Visao; rotulo: string }[] = [
+  { visao: 'trabalhador', rotulo: 'Por trabalhador' },
+  { visao: 'regra', rotulo: 'Por regra' },
+  { visao: 'causa', rotulo: 'Por causa' },
+];
+
+/** `rubrica:77|001` -> `Corrija a rubrica 77 (tabela 001)` */
+const rotularCausa = (causa: string) =>
+  causa.startsWith('rubrica:')
+    ? `Corrija a ${rotuloRubrica(causa.slice('rubrica:'.length))}`
+    : causa;
+
 /** HU-02: entender em segundos o tamanho do problema. */
 export function Relatorio({ resumo, aoVerNoXml }: { resumo: Concluido; aoVerNoXml: VerNoXml }) {
   /** Chave do achado aberto no cartão (HU-03). */
@@ -36,11 +53,13 @@ export function Relatorio({ resumo, aoVerNoXml }: { resumo: Concluido; aoVerNoXm
   const [severidades, setSeveridades] = useState<ReadonlySet<Severidade>>(new Set(SEVERIDADES));
   const [busca, setBusca] = useState('');
   const buscaAdiada = useDeferredValue(busca);
+  const [visao, setVisao] = useState<Visao>('trabalhador');
 
-  const grupos = useMemo(
-    () => agruparPorTrabalhador(resumo.achados, resumo.trabalhadores),
-    [resumo.achados, resumo.trabalhadores],
-  );
+  const grupos = useMemo(() => {
+    if (visao === 'regra') return agruparPorRegra(resumo.achados, tituloDe);
+    if (visao === 'causa') return agruparPorCausa(resumo.achados, rotularCausa);
+    return agruparPorTrabalhador(resumo.achados, resumo.trabalhadores);
+  }, [visao, resumo.achados, resumo.trabalhadores]);
   const linhas = useMemo(
     () => linhasFiltradas(grupos, { severidades, busca: buscaAdiada }),
     [grupos, severidades, buscaAdiada],
@@ -149,8 +168,9 @@ export function Relatorio({ resumo, aoVerNoXml }: { resumo: Concluido; aoVerNoXm
 
       <section className="space-y-3" aria-labelledby="titulo-achados">
         <h2 id="titulo-achados" className="text-lg font-bold">
-          Achados por trabalhador
+          Achados
         </h2>
+        <Abas visao={visao} aoMudar={setVisao} />
         <div className="flex flex-wrap items-center gap-3">
           {SEVERIDADES.map((s) => (
             <button
@@ -181,23 +201,26 @@ export function Relatorio({ resumo, aoVerNoXml }: { resumo: Concluido; aoVerNoXm
           Mostrando {formatarQuantidade(visiveis)} de {formatarQuantidade(resumo.achados.length)}{' '}
           achado(s).
         </p>
-        {resumo.achados.length === 0 ? (
-          <p className="border border-tinta p-4">
-            Nenhum problema encontrado nas regras executadas (
-            {resumo.regrasExecutadas.map((r) => r.codigo).join(', ') || 'nenhuma'}).
-          </p>
-        ) : linhas.length === 0 ? (
-          <p className="border border-tinta p-4">Nenhum achado com esses filtros.</p>
-        ) : (
-          <ListaVirtual
-            itens={linhas}
-            alturaLinha={ALTURA_LINHA}
-            altura={ALTURA_LISTA}
-            rotulo="Achados por trabalhador"
-            chave={(l) => (l.tipo === 'grupo' ? `g:${l.grupo.id}` : `a:${l.achado.chave}`)}
-            renderizar={(l) => <LinhaDoRelatorio linha={l} aoAbrir={setAberto} />}
-          />
-        )}
+        <div role="tabpanel" id={`painel-${visao}`} aria-labelledby={`aba-${visao}`}>
+          {resumo.achados.length === 0 ? (
+            <p className="border border-tinta p-4">
+              Nenhum problema encontrado nas regras executadas (
+              {resumo.regrasExecutadas.map((r) => r.codigo).join(', ') || 'nenhuma'}).
+            </p>
+          ) : linhas.length === 0 ? (
+            <p className="border border-tinta p-4">Nenhum achado com esses filtros.</p>
+          ) : (
+            <ListaVirtual
+              key={visao}
+              itens={linhas}
+              alturaLinha={ALTURA_LINHA}
+              altura={ALTURA_LISTA}
+              rotulo={`Achados ${VISOES.find((v) => v.visao === visao)?.rotulo.toLowerCase()}`}
+              chave={(l) => (l.tipo === 'grupo' ? `g:${l.grupo.id}` : `a:${l.achado.chave}`)}
+              renderizar={(l) => <LinhaDoRelatorio linha={l} visao={visao} aoAbrir={setAberto} />}
+            />
+          )}
+        </div>
       </section>
 
       <Cartao className="space-y-2">
@@ -256,15 +279,76 @@ function Dado({ rotulo, valor, mono = false }: { rotulo: string; valor: string; 
   );
 }
 
-function LinhaDoRelatorio({ linha, aoAbrir }: { linha: Linha; aoAbrir: (chave: string) => void }) {
+/** Abas com o padrão ARIA: setas trocam de aba, Home/End vão para a primeira/última. */
+function Abas({ visao, aoMudar }: { visao: Visao; aoMudar: (v: Visao) => void }) {
+  const mover = (passo: number | 'inicio' | 'fim') => {
+    const i = VISOES.findIndex((v) => v.visao === visao);
+    const alvo =
+      passo === 'inicio'
+        ? 0
+        : passo === 'fim'
+          ? VISOES.length - 1
+          : (i + passo + VISOES.length) % VISOES.length;
+    const proxima = VISOES[alvo];
+    if (!proxima) return;
+    aoMudar(proxima.visao);
+    document.getElementById(`aba-${proxima.visao}`)?.focus();
+  };
+  return (
+    <div
+      role="tablist"
+      aria-label="Agrupar achados"
+      className="flex gap-0 border-b border-tinta"
+      onKeyDown={(e) => {
+        const tecla = { ArrowRight: 1, ArrowLeft: -1, Home: 'inicio', End: 'fim' } as const;
+        const passo = tecla[e.key as keyof typeof tecla];
+        if (passo === undefined) return;
+        e.preventDefault();
+        mover(passo);
+      }}
+    >
+      {VISOES.map((v) => {
+        const ativa = v.visao === visao;
+        return (
+          <button
+            key={v.visao}
+            id={`aba-${v.visao}`}
+            type="button"
+            role="tab"
+            aria-selected={ativa}
+            aria-controls={`painel-${v.visao}`}
+            tabIndex={ativa ? 0 : -1}
+            onClick={() => aoMudar(v.visao)}
+            className={`-mb-px min-h-11 border border-b-0 px-5 font-semibold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-tinta ${
+              ativa
+                ? 'border-tinta bg-papel'
+                : 'border-transparent text-secundario hover:text-tinta'
+            }`}
+          >
+            {v.rotulo}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function LinhaDoRelatorio({
+  linha,
+  visao,
+  aoAbrir,
+}: {
+  linha: Linha;
+  visao: Visao;
+  aoAbrir: (chave: string) => void;
+}) {
   if (linha.tipo === 'grupo') {
     const { grupo } = linha;
+    const mono = visao === 'trabalhador' && grupo.id !== GRUPO_DO_LOTE;
     return (
       <div className="flex h-full items-center gap-3 border-b border-tinta bg-linha/60 px-4">
         <IconeSeveridade severidade={grupo.pior} />
-        <span
-          className={`whitespace-nowrap font-semibold ${grupo.id === GRUPO_DO_LOTE ? '' : 'font-mono'}`}
-        >
+        <span className={`truncate font-semibold ${mono ? 'whitespace-nowrap font-mono' : ''}`}>
           {grupo.rotulo}
         </span>
         {grupo.matriculas.length > 0 && (
@@ -272,8 +356,15 @@ function LinhaDoRelatorio({ linha, aoAbrir }: { linha: Linha; aoAbrir: (chave: s
             matr. {grupo.matriculas.join(', ')}
           </span>
         )}
-        <span className="ml-auto hidden shrink-0 text-sm text-secundario sm:inline">
-          {formatarQuantidade(linha.visiveis)} achado(s)
+        <span className="ml-auto shrink-0 text-sm text-secundario" data-testid="contagem-grupo">
+          {visao === 'causa' && grupo.id !== GRUPO_SEM_CAUSA ? (
+            <>
+              resolve <strong className="text-tinta">{formatarQuantidade(linha.visiveis)}</strong>{' '}
+              achado(s)
+            </>
+          ) : (
+            <span className="hidden sm:inline">{formatarQuantidade(linha.visiveis)} achado(s)</span>
+          )}
         </span>
       </div>
     );
@@ -294,7 +385,8 @@ function LinhaDoRelatorio({ linha, aoAbrir }: { linha: Linha; aoAbrir: (chave: s
         {fraseDoAchado(achado, titulo)}
       </span>
       <span className="ml-auto hidden shrink-0 font-mono text-xs text-secundario sm:inline">
-        {achado.evento}
+        {/* Fora da visão por trabalhador, a linha diz de quem é o achado. */}
+        {visao === 'trabalhador' ? achado.evento : achado.cpf ? mascararCpf(achado.cpf) : 'lote'}
       </span>
     </button>
   );
